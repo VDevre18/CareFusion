@@ -1,0 +1,92 @@
+// Placeholder for Pages/AddEditPatient.razor
+@page "/patients/add"
+@page "/patients/edit/{id:guid}"
+@inject IPatientService PatientService
+@inject NavigationManager Nav
+
+<h3>@(isEdit ? "Edit Patient" : "Add Patient")</h3>
+
+@if (model is null) { <p>Loading�</p> }
+else
+{
+    <EditForm Model="model" OnValidSubmit="Save">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="form-grid">
+            <InputText @bind-Value="firstName" placeholder="First Name" />
+            <InputText @bind-Value="lastName" placeholder="Last Name" />
+            <InputText @bind-Value="mrn" placeholder="MRN" />
+            <InputDate @bind-Value="dob" />
+            <InputText @bind-Value="gender" placeholder="Gender" />
+        </div>
+        <button type="submit">Save</button>
+        <button type="button" @onclick="Cancel">Cancel</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public Guid? id { get; set; }
+    CareFusion.Model.Dtos.PatientDto? model;
+    bool isEdit => id.HasValue;
+    
+    string firstName = "";
+    string lastName = "";
+    string? mrn = "";
+    string? gender = "";
+    DateTime? dob;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (isEdit)
+        {
+            model = await PatientService.GetAsync(id!.Value);
+            if (model != null)
+            {
+                firstName = model.FirstName;
+                lastName = model.LastName;
+                mrn = model.MRN;
+                gender = model.Gender;
+                dob = model.DateOfBirth;
+            }
+        }
+        else
+        {
+            firstName = "";
+            lastName = "";
+            mrn = "";
+            gender = "";
+            dob = DateTime.Now;
+            model = new CareFusion.Model.Dtos.PatientDto 
+            { 
+                Id = Guid.NewGuid(),
+                FirstName = firstName,
+                LastName = lastName,
+                MRN = mrn,
+                Gender = gender,
+                DateOfBirth = dob
+            };
+        }
+    }
+
+    private async Task Save()
+    {
+        model = new CareFusion.Model.Dtos.PatientDto 
+        { 
+            Id = isEdit ? model!.Id : Guid.NewGuid(),
+            FirstName = firstName,
+            LastName = lastName,
+            MRN = mrn,
+            Gender = gender,
+            DateOfBirth = dob
+        };
+
+        if (isEdit) await PatientService.UpdateAsync(model!);
+        else await PatientService.CreateAsync(model!);
+        Nav.NavigateTo("/patients");
+    }
+
+    private void Cancel()
+    {
+        Nav.NavigateTo("/patients");
+    }
+}

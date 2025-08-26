@@ -1,0 +1,25 @@
+// Placeholder for Components/PatientTable.razor
+@using CareFusion.Model.Dtos
+<table class="table">
+    <thead><tr><th>MRN</th><th>Name</th><th>DOB</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var p in Items)
+        {
+            <tr>
+                <td>@p.MRN</td>
+                <td>@p.FirstName @p.LastName</td>
+                <td>@(p.DateOfBirth?.ToShortDateString())</td>
+                <td>
+                    <button @onclick="() => OnView?.Invoke(p.Id)">View</button>
+                    <button @onclick="() => OnEdit?.Invoke(p.Id)">Edit</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter] public IEnumerable<PatientDto> Items { get; set; } = Array.Empty<PatientDto>();
+    [Parameter] public Action<Guid>? OnView { get; set; }
+    [Parameter] public Action<Guid>? OnEdit { get; set; }
+}

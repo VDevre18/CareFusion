@@ -1,0 +1,31 @@
+@inject IAuthService Auth
+@inject NavigationManager Navigation
+
+<div class="auth-display">
+    @if (Auth.CurrentUser is null)
+    {
+        <button class="btn btn-primary" @onclick="GoToLogin">Login</button>
+    }
+    else
+    {
+        <div class="user-info">
+            <span class="user-name">@Auth.CurrentUser.Username</span>
+            <span class="user-role badge bg-secondary">@Auth.CurrentUser.Role</span>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="Logout">Logout</button>
+        </div>
+    }
+</div>
+
+@code {
+    private void GoToLogin()
+    {
+        Navigation.NavigateTo("/login");
+    }
+
+    private Task Logout()
+    {
+        Auth.Logout();
+        Navigation.NavigateTo("/login");
+        return Task.CompletedTask;
+    }
+}

@@ -1,0 +1,33 @@
+// Placeholder for Pages/UploadExam.razor
+@page "/upload"
+@inject HttpClient Http
+@inject IConfiguration Cfg
+
+<h3>Upload Exam</h3>
+
+<InputFile OnChange="OnFileChange" />
+<input @bind="examIdString" placeholder="Exam Id (GUID)" />
+<button disabled="@(_file is null || !Guid.TryParse(examIdString, out _))" @onclick="Upload">Upload</button>
+
+<p>@message</p>
+
+@code {
+    private IBrowserFile? _file;
+    private string? examIdString;
+    private string message = string.Empty;
+
+    void OnFileChange(InputFileChangeEventArgs e) => _file = e.File;
+
+    async Task Upload()
+    {
+        if (_file is null || !Guid.TryParse(examIdString, out var examId)) return;
+
+        using var content = new MultipartFormDataContent();
+        var stream = _file.OpenReadStream(maxAllowedSize: 1024L * 1024 * 1024); // 1 GB cap
+        content.Add(new StreamContent(stream), "file", _file.Name);
+
+        var api = new Uri(new Uri(Cfg["Api:BaseUrl"]!), $"api/storage/upload/{examId}");
+        var resp = await Http.PostAsync(api, content);
+        message = resp.IsSuccessStatusCode ? "Upload successful" : $"Upload failed: {resp.StatusCode}";
+    }
+}

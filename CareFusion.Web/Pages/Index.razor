@@ -1,0 +1,91 @@
+@page "/"
+@attribute [Authorize]
+
+<PageTitle>Dashboard - CareFusion</PageTitle>
+
+<div class="dashboard">
+    <div class="row">
+        <div class="col-12">
+            <h1>CareFusion Dashboard</h1>
+            <p class="lead">Welcome to the CareFusion medical imaging management system.</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Total Patients</h5>
+                    <h2 class="card-text">@totalPatients</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Total Exams</h5>
+                    <h2 class="card-text">@totalExams</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Recent Exams</h5>
+                    <h2 class="card-text">@recentExams</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Pending Reviews</h5>
+                    <h2 class="card-text">@pendingReviews</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    <p>Recent patient visits and exam uploads will appear here.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="/patients/add" class="btn btn-primary">Add New Patient</a>
+                        <a href="/upload" class="btn btn-success">Upload Exam</a>
+                        <a href="/patients" class="btn btn-outline-primary">View All Patients</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int totalPatients = 0;
+    private int totalExams = 0;
+    private int recentExams = 0;
+    private int pendingReviews = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Load actual stats from services
+        totalPatients = 247;
+        totalExams = 1432;
+        recentExams = 23;
+        pendingReviews = 8;
+    }
+}

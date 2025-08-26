@@ -1,0 +1,22 @@
+// Placeholder for Components/ExamTable.razor
+@using CareFusion.Model.Dtos
+<table class="table">
+    <thead><tr><th>Modality</th><th>Type</th><th>Date</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var e in Items)
+        {
+            <tr>
+                <td>@e.Modality</td>
+                <td>@e.StudyType</td>
+                <td>@e.StudyDateUtc.ToLocalTime()</td>
+                <td>@e.Status</td>
+                <td><button @onclick="() => OnView?.Invoke(e.Id)">View</button></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter] public IEnumerable<ExamDto> Items { get; set; } = Array.Empty<ExamDto>();
+    [Parameter] public Action<Guid>? OnView { get; set; }
+}

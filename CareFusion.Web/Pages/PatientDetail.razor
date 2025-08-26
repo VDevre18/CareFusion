@@ -1,0 +1,27 @@
+// Placeholder for Pages/PatientDetail.razor
+@page "/patients/{id:guid}"
+@inject IPatientService PatientService
+@inject IExamService ExamService
+@code {
+    [Parameter] public Guid id { get; set; }
+    CareFusion.Model.Dtos.PatientDto? patient;
+    List<CareFusion.Model.Dtos.ExamDto> exams = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        patient = await PatientService.GetAsync(id);
+        var page = await ExamService.ListByPatientAsync(id, 1, 50);
+        exams = page.Items.ToList();
+    }
+}
+<h3>Patient Detail</h3>
+@if (patient is null) { <p>Loading�</p> }
+else
+{
+    <p><b>@patient.FirstName @patient.LastName</b> (MRN: @patient.MRN)</p>
+    <ExamTable Items="exams" OnView="@(examId => NavMgr.NavigateTo($"/exams/{examId}"))" />
+}
+@code {
+    [Inject] NavigationManager NavMgr { get; set; } = default!;
+    void Nav(string url) => NavMgr.NavigateTo(url);
+}

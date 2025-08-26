@@ -1,0 +1,7 @@
+// Placeholder for Resources/en.json
+{
+  "title": "CareFusion",
+  "patients": "Patients",
+  "exams": "Exams",
+  "upload": "Upload"
+}

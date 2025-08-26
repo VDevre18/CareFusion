@@ -1,0 +1,19 @@
+// Placeholder for Pages/Exams.razor
+@page "/exams"
+@inject IExamService ExamService
+
+<h3>Exams</h3>
+<ExamTable Items="items" OnView="View" />
+
+@code {
+    private List<CareFusion.Model.Dtos.ExamDto> items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Simple list without filter: load first page of all exams by paging through patients as needed.
+        // For brevity, leave as empty or you can implement a general API endpoint later.
+    }
+
+    void View(Guid id) => Nav.NavigateTo($"/exams/{id}");
+    [Inject] NavigationManager Nav { get; set; } = default!;
+}

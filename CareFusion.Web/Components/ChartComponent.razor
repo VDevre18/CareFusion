@@ -1,0 +1,15 @@
+// Placeholder for Components/ChartComponent.razor
+@code {
+    [Parameter] public string Title { get; set; } = "Chart";
+}
+<div class="card">
+    <h4>@Title</h4>
+    <canvas id="chart" width="400" height="160"></canvas>
+</div>
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await JS.InvokeVoidAsync("interop.renderSampleChart", "chart");
+    }
+    [Inject] IJSRuntime JS { get; set; } = default!;
+}

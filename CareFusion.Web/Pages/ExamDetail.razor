@@ -1,0 +1,30 @@
+// Placeholder for Pages/ExamDetail.razor
+@page "/exams/{id:guid}"
+@inject IExamService ExamService
+
+<h3>Exam Detail</h3>
+@if (exam is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <p>Modality: @exam.Modality</p>
+    <p>Study Type: @exam.StudyType</p>
+    <p>Date: @exam.StudyDateUtc.ToLocalTime()</p>
+    <p>Status: @exam.Status</p>
+    @if (!string.IsNullOrWhiteSpace(exam.StorageUri))
+    {
+        <a href="@exam.StorageUri" target="_blank">Download</a>
+    }
+}
+
+@code {
+    [Parameter] public Guid id { get; set; }
+    CareFusion.Model.Dtos.ExamDto? exam;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        exam = await ExamService.GetAsync(id);
+    }
+}
