@@ -1,0 +1,271 @@
+@page "/manage-clinic-sites"
+@attribute [Authorize]
+@using CareFusion.Web.Services.Interfaces
+@using CareFusion.Model.Dtos
+@inject IClinicSiteService ClinicSiteService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Sites Management - CareFusion</PageTitle>
+
+<div class="manage-sites-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Sites Management</h2>
+        <button class="btn btn-primary" @onclick="ShowAddSiteModal">
+            Create New Site
+        </button>
+    </div>
+
+    <div class="search-section mb-4">
+        <input type="text" class="form-control search-input" placeholder="Search by name" @bind="searchTerm" @oninput="OnSearchTermChanged" />
+    </div>
+
+    <div class="sites-list">
+        <div class="row fw-bold border-bottom pb-2 mb-3">
+            <div class="col-8">Name</div>
+            <div class="col-4"></div>
+        </div>
+
+        @if (filteredSites.Any())
+        {
+            @foreach (var site in filteredSites)
+            {
+                <div class="row align-items-center py-3 border-bottom">
+                    <div class="col-8">
+                        <div class="site-name @(site.IsActive ? "" : "text-muted")">
+                            @site.Name
+                            @if (!site.IsActive)
+                            {
+                                <span class="badge bg-secondary ms-2">Inactive</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-4 text-end">
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button class="btn btn-primary btn-action" @onclick="() => EditSite(site.Id)">
+                                Edit
+                            </button>
+                            @if (site.IsActive)
+                            {
+                                <button class="btn btn-warning btn-action" @onclick="() => DeactivateSite(site.Id)">
+                                    Deactivate
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-success btn-action" @onclick="() => ActivateSite(site.Id)">
+                                    Activate
+                                </button>
+                            }
+                            <button class="btn btn-danger btn-action" @onclick="() => DeleteSite(site.Id)">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="text-center text-muted py-5">
+                No clinic sites found
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .manage-sites-container {
+        padding: 20px;
+    }
+
+    .search-input {
+        max-width: 400px;
+        border-bottom: 2px solid #007bff;
+        border-radius: 0;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+        box-shadow: none;
+        padding-left: 0;
+    }
+
+    .search-input:focus {
+        border-bottom-color: #0056b3;
+        box-shadow: none;
+    }
+
+    .btn-action {
+        min-width: 80px;
+        border-radius: 20px;
+        font-weight: 500;
+        padding: 8px 16px;
+    }
+
+    .sites-list {
+        font-size: 16px;
+    }
+
+    .site-name {
+        font-weight: 500;
+        color: #333;
+    }
+
+    .border-bottom {
+        border-bottom: 1px solid #dee2e6 !important;
+    }
+</style>
+
+@code {
+    private List<ClinicSiteDto> clinicSites = new();
+    private List<ClinicSiteDto> filteredSites = new();
+    private string searchTerm = "";
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadClinicSites();
+    }
+
+    private async Task LoadClinicSites()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+            
+            var result = await ClinicSiteService.SearchAsync(searchTerm, 1, 100);
+            clinicSites = result.Items.ToList();
+            
+            FilterSites();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading clinic sites: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OnSearchTermChanged(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? "";
+        FilterSites();
+    }
+
+    private void FilterSites()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredSites = clinicSites.ToList();
+        }
+        else
+        {
+            filteredSites = clinicSites
+                .Where(s => s.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+        StateHasChanged();
+    }
+
+    private void ShowAddSiteModal()
+    {
+        Navigation.NavigateTo("/manage-clinic-sites/add");
+    }
+
+    private void EditSite(int siteId)
+    {
+        Navigation.NavigateTo($"/manage-clinic-sites/edit/{siteId}");
+    }
+
+    private async Task DeactivateSite(int siteId)
+    {
+        try
+        {
+            var site = clinicSites.FirstOrDefault(s => s.Id == siteId);
+            if (site != null)
+            {
+                if (await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to deactivate '{site.Name}'?"))
+                {
+                    site.IsActive = false;
+                    var result = await ClinicSiteService.UpdateAsync(site);
+                    if (result != null)
+                    {
+                        await LoadClinicSites(); // Reload the list
+                    }
+                    else
+                    {
+                        await JSRuntime.InvokeVoidAsync("alert", "Failed to deactivate clinic site");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deactivating site: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Error occurred while deactivating clinic site");
+        }
+    }
+
+    private async Task ActivateSite(int siteId)
+    {
+        try
+        {
+            var site = clinicSites.FirstOrDefault(s => s.Id == siteId);
+            if (site != null)
+            {
+                if (await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to activate '{site.Name}'?"))
+                {
+                    site.IsActive = true;
+                    var result = await ClinicSiteService.UpdateAsync(site);
+                    if (result != null)
+                    {
+                        await LoadClinicSites(); // Reload the list
+                    }
+                    else
+                    {
+                        await JSRuntime.InvokeVoidAsync("alert", "Failed to activate clinic site");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error activating site: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Error occurred while activating clinic site");
+        }
+    }
+
+    private async Task DeleteSite(int siteId)
+    {
+        try
+        {
+            var site = clinicSites.FirstOrDefault(s => s.Id == siteId);
+            if (site != null)
+            {
+                // Confirm deletion
+                if (await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete '{site.Name}'?"))
+                {
+                    var result = await ClinicSiteService.DeleteAsync(siteId);
+                    if (result)
+                    {
+                        await LoadClinicSites(); // Reload the list
+                    }
+                    else
+                    {
+                        await JSRuntime.InvokeVoidAsync("alert", "Failed to delete clinic site");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting site: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Error occurred while deleting clinic site");
+        }
+    }
+
+}

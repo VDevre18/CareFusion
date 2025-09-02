@@ -1,0 +1,193 @@
+@page "/patients/{patientId:int}/notes/add"
+@attribute [Authorize]
+@using CareFusion.Model.Dtos
+@using CareFusion.Web.Services.Interfaces
+@using System.ComponentModel.DataAnnotations
+@inject IPatientService PatientService
+@inject IPatientNoteService PatientNoteService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Add Clinical Note - CareFusion</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <button class="btn btn-outline-secondary btn-sm mb-2" @onclick="GoBack">
+            <i class="bi bi-arrow-left"></i> Back to Patient
+        </button>
+        <h2>Add Clinical Note</h2>
+        @if (patient != null)
+        {
+            <p class="text-muted">For: <strong>@patient.FirstName @patient.LastName</strong> (ID: @patient.Id)</p>
+        }
+    </div>
+</div>
+
+@if (patient == null)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Loading patient information...</p>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <EditForm Model="noteModel" OnValidSubmit="SaveNote">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="noteType" class="form-label">Note Type</label>
+                        <select id="noteType" class="form-select" @bind="noteModel.NoteType">
+                            <option value="Clinical Note">Clinical Note</option>
+                            <option value="Progress Note">Progress Note</option>
+                            <option value="Assessment">Assessment</option>
+                            <option value="Treatment Plan">Treatment Plan</option>
+                            <option value="Discharge Summary">Discharge Summary</option>
+                            <option value="Consultation">Consultation</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="authorName" class="form-label">Author</label>
+                        <input id="authorName" type="text" class="form-control" @bind="noteModel.AuthorName" placeholder="Healthcare provider name" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="noteDate" class="form-label">Date</label>
+                    <input id="noteDate" type="date" class="form-control" @bind="noteModel.NoteDate" />
+                </div>
+
+                <div class="mb-4">
+                    <label for="content" class="form-label">Note Content</label>
+                    <textarea id="content" class="form-control" rows="8" @bind="noteModel.Content" 
+                              placeholder="Enter clinical note content..."></textarea>
+                    <div class="form-text">Provide detailed clinical observations, assessments, or treatment notes.</div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary" @onclick="GoBack">
+                        <i class="bi bi-x"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        <i class="bi bi-check"></i> Save Note
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int PatientId { get; set; }
+
+    private PatientDto? patient;
+    private PatientNoteModel noteModel = new();
+    private bool isSaving = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPatient();
+        InitializeNote();
+    }
+
+    private async Task LoadPatient()
+    {
+        try
+        {
+            patient = await PatientService.GetAsync(PatientId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading patient: {ex.Message}");
+        }
+    }
+
+    private void InitializeNote()
+    {
+        noteModel = new PatientNoteModel
+        {
+            PatientId = PatientId,
+            NoteType = "Clinical Note",
+            AuthorName = "Current User", // In real app, get from auth context
+            NoteDate = DateTime.Today
+        };
+    }
+
+    private async Task SaveNote()
+    {
+        try
+        {
+            isSaving = true;
+            StateHasChanged();
+
+            // Convert to DTO
+            var noteDto = new PatientNoteDto
+            {
+                PatientId = noteModel.PatientId,
+                NoteType = noteModel.NoteType,
+                Content = noteModel.Content,
+                AuthorName = noteModel.AuthorName,
+                NoteDate = noteModel.NoteDate
+            };
+
+            // Save to database
+            var result = await PatientNoteService.CreateAsync(noteDto);
+            
+            if (result != null)
+            {
+                // Navigate back to patient detail
+                await JSRuntime.InvokeVoidAsync("alert", "Note saved successfully!");
+                Navigation.NavigateTo($"/patients/{PatientId}?tab=notes");
+            }
+            else
+            {
+                // Handle error - could show message to user
+                await JSRuntime.InvokeVoidAsync("alert", "Error saving patient note. Please try again.");
+                Console.WriteLine("Error saving patient note");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error occurred: {ex.Message}");
+            Console.WriteLine($"Error saving note: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo($"/patients/{PatientId}");
+    }
+
+    public class PatientNoteModel
+    {
+        public int PatientId { get; set; }
+        
+        [Required(ErrorMessage = "Note type is required")]
+        public string NoteType { get; set; } = "Clinical Note";
+        
+        [Required(ErrorMessage = "Note content is required")]
+        [MinLength(10, ErrorMessage = "Note content must be at least 10 characters")]
+        public string Content { get; set; } = string.Empty;
+        
+        [Required(ErrorMessage = "Author name is required")]
+        public string AuthorName { get; set; } = string.Empty;
+        
+        public DateTime NoteDate { get; set; } = DateTime.Today;
+    }
+}

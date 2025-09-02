@@ -1,91 +1,585 @@
 @page "/"
 @attribute [Authorize]
+@using CareFusion.Model.Dtos
+@using CareFusion.Web.Services.Interfaces
+@inject IPatientService PatientService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
-<PageTitle>Dashboard - CareFusion</PageTitle>
+<PageTitle>Patient List - CareFusion</PageTitle>
 
-<div class="dashboard">
-    <div class="row">
-        <div class="col-12">
-            <h1>CareFusion Dashboard</h1>
-            <p class="lead">Welcome to the CareFusion medical imaging management system.</p>
+<div class="page-container">
+    <div class="patients-section @(selectedPatientId > 0 ? "with-details" : "")">
+        <div class="patients-header">
+            <h2>Latest Patients</h2>
+            <div class="search-box">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" class="search-input" placeholder="Search by name or patient ID" 
+                       @bind="searchTerm" @bind:event="oninput" />
+            </div>
         </div>
-    </div>
 
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card text-white bg-primary">
-                <div class="card-body">
-                    <h5 class="card-title">Total Patients</h5>
-                    <h2 class="card-text">@totalPatients</h2>
-                </div>
+        <!-- Patient Table -->
+        <div class="patients-table">
+            <!-- Table Headers -->
+            <div class="table-header">
+                <div class="header-cell name">Name</div>
+                <div class="header-cell patient-id">Patient ID</div>
+                <div class="header-cell dob">DoB</div>
+                <div class="header-cell interaction">Last Interaction</div>
+                <div class="header-cell actions"></div>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-success">
-                <div class="card-body">
-                    <h5 class="card-title">Total Exams</h5>
-                    <h2 class="card-text">@totalExams</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-info">
-                <div class="card-body">
-                    <h5 class="card-title">Recent Exams</h5>
-                    <h2 class="card-text">@recentExams</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-warning">
-                <div class="card-body">
-                    <h5 class="card-title">Pending Reviews</h5>
-                    <h2 class="card-text">@pendingReviews</h2>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Recent Activity</h5>
-                </div>
-                <div class="card-body">
-                    <p>Recent patient visits and exam uploads will appear here.</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Quick Actions</h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="/patients/add" class="btn btn-primary">Add New Patient</a>
-                        <a href="/upload" class="btn btn-success">Upload Exam</a>
-                        <a href="/patients" class="btn btn-outline-primary">View All Patients</a>
+            <!-- Table Rows -->
+            <div class="table-body">
+                @if (filteredPatients.Any())
+                {
+                    @foreach (var patient in filteredPatients.Take(20))
+                    {
+                        <div class="table-row @(selectedPatientId == patient.Id ? "selected" : "")" 
+                             @onclick="() => SelectPatient(patient.Id)">
+                            <div class="cell name">@patient.FullName</div>
+                            <div class="cell patient-id">@patient.Id.ToString("000")</div>
+                            <div class="cell dob">@(patient.DateOfBirth?.ToString("yyyy-MM-dd") ?? "")</div>
+                            <div class="cell interaction">@GetLastVisit(patient.Id)</div>
+                            <div class="cell actions">
+                                <button class="action-icon" @onclick:stopPropagation="true" 
+                                        @onclick="() => ViewPatientDetails(patient.Id)" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="action-icon" @onclick:stopPropagation="true" 
+                                        @onclick="() => EditPatient(patient.Id)" title="Edit Patient">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="action-icon delete-action" @onclick:stopPropagation="true" 
+                                        @onclick="() => DeletePatient(patient.Id)" title="Delete Patient">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="no-data-row">
+                        <div class="no-data-message">No patients found</div>
                     </div>
+                }
+            </div>
+        </div>
+
+        <!-- New Patient Button -->
+        <div class="new-patient-section">
+            <button class="new-patient-btn" @onclick="ShowAddPatientModal">
+                <i class="bi bi-plus"></i>
+                New Patient
+            </button>
+        </div>
+    </div>
+
+    <!-- Patient Details Panel -->
+    @if (selectedPatientId > 0 && selectedPatient != null)
+    {
+        <div class="patient-details-panel">
+            <div class="details-header">
+                <div class="patient-title">
+                    <h3>@selectedPatient.FullName</h3>
+                    <div class="patient-id">@selectedPatient.Id.ToString("000")</div>
+                    <div class="patient-dob">@(selectedPatient.DateOfBirth?.ToString("yyyy-MM-dd") ?? "")</div>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn settings" title="Settings">
+                        <i class="bi bi-gear"></i>
+                    </button>
+                    <button class="icon-btn close" @onclick="ClearSelection" title="Close">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="action-buttons-row">
+                <button class="action-btn primary" @onclick="() => ViewPreviousExams(selectedPatient.Id)">
+                    <i class="bi bi-file-medical"></i>
+                    Previous Exams
+                </button>
+                <button class="action-btn scan" @onclick="() => BeginScan(selectedPatient.Id)">
+                    <i class="bi bi-camera"></i>
+                    Begin Scan
+                </button>
+            </div>
+
+            <div class="details-tabs">
+                <div class="tab-navigation">
+                    <button class="tab-btn @(activeTab == "exams" ? "active" : "")" 
+                            @onclick='() => SetActiveTab("exams")'>Exams</button>
+                    <button class="tab-btn @(activeTab == "notes" ? "active" : "")" 
+                            @onclick='() => SetActiveTab("notes")'>Notes</button>
+                    <button class="tab-btn @(activeTab == "reports" ? "active" : "")" 
+                            @onclick='() => SetActiveTab("reports")'>Reports</button>
+                </div>
+
+                <div class="tab-content-area">
+                    @if (activeTab == "exams")
+                    {
+                        <div class="tab-content">
+                            @if (GetExamCount(selectedPatient.Id) > 0)
+                            {
+                                <div class="exam-list">
+                                    <p>@GetExamCount(selectedPatient.Id) previous exams</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="empty-state">
+                                    <p>No previous exams</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (activeTab == "notes")
+                    {
+                        <div class="tab-content notes-tab">
+                            @if (patientNotes.Any())
+                            {
+                                <div class="notes-list">
+                                    @foreach (var note in patientNotes.OrderByDescending(n => n.CreatedDate))
+                                    {
+                                        <div class="note-item">
+                                            <div class="note-header">
+                                                <span class="note-title">@note.Title</span>
+                                                <span class="note-date">@note.CreatedDate.ToString("yyyy-MM-dd h:mm tt")</span>
+                                                <span class="note-author">@note.Author</span>
+                                                <button class="delete-note" @onclick="() => DeleteNote(note.Id)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                            <div class="note-content">@note.Content</div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="empty-state">
+                                    <p>No previous notes</p>
+                                </div>
+                            }
+                            
+                            <div class="new-note-section">
+                                <textarea class="note-input" placeholder="New Note" 
+                                         @bind="newNoteContent" maxlength="200"></textarea>
+                                <div class="note-actions">
+                                    <button class="save-note-btn" @onclick="SaveNote" disabled="@(string.IsNullOrWhiteSpace(newNoteContent))">
+                                        Save
+                                    </button>
+                                    <div class="character-count">@newNoteContent.Length / 200</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else if (activeTab == "reports")
+                    {
+                        <div class="tab-content">
+                            <div class="empty-state">
+                                <p>No reports available</p>
+                            </div>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
-    </div>
+    }
 </div>
 
 @code {
-    private int totalPatients = 0;
-    private int totalExams = 0;
-    private int recentExams = 0;
-    private int pendingReviews = 0;
+    private List<PatientDto> patients = new();
+    private List<PatientDto> filteredPatients = new();
+    private string searchTerm = string.Empty;
+    private string selectedFilter = "all";
+    private int selectedPatientId = 0;
+    private PatientDto? selectedPatient = null;
+    private string activeTab = "exams";
+    private List<PatientNote> patientNotes = new();
+    private string newNoteContent = string.Empty;
+    private static Dictionary<int, List<PatientNote>> allPatientNotes = new();
 
     protected override async Task OnInitializedAsync()
     {
-        // TODO: Load actual stats from services
-        totalPatients = 247;
-        totalExams = 1432;
-        recentExams = 23;
-        pendingReviews = 8;
+        await LoadPatients();
     }
+
+    /// <summary>
+    /// Loads all patients from the database and initializes the filtered list
+    /// </summary>
+    private async Task LoadPatients()
+    {
+        try
+        {
+            // Get the current user's clinic site for filtering (unless admin)
+            int? clinicSiteFilter = null;
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            
+            if (user.IsInRole("Admin"))
+            {
+                // Admins can see all patients
+                clinicSiteFilter = null;
+            }
+            else
+            {
+                // Non-admin users are filtered by their clinic site
+                var clinicSiteClaim = user.FindFirst("ClinicSiteId");
+                if (clinicSiteClaim != null && int.TryParse(clinicSiteClaim.Value, out int clinicSiteId))
+                {
+                    clinicSiteFilter = clinicSiteId;
+                }
+            }
+
+            // Load patients filtered by clinic site
+            var result = await PatientService.SearchAsync("", 1, 100, clinicSiteFilter);
+            patients = result.Items.ToList();
+            filteredPatients = patients.ToList();
+        }
+        catch (Exception ex)
+        {
+            // Handle error - could log or show notification
+            Console.WriteLine($"Error loading patients: {ex.Message}");
+            // Fallback to empty list
+            patients = new List<PatientDto>();
+            filteredPatients = new List<PatientDto>();
+        }
+    }
+
+    /// <summary>
+    /// Generates sample patient data for demonstration purposes
+    /// </summary>
+    private List<PatientDto> GenerateSamplePatients()
+    {
+        return new List<PatientDto>
+        {
+            new() { Id = 1, FirstName = "John", LastName = "Smith", DateOfBirth = new DateTime(1985, 3, 15), Gender = "Male", Phone = "(555) 123-4567", Email = "john.smith@email.com", IsActive = true },
+            new() { Id = 2, FirstName = "Sarah", LastName = "Johnson", DateOfBirth = new DateTime(1992, 7, 22), Gender = "Female", Phone = "(555) 234-5678", Email = "sarah.johnson@email.com", IsActive = true },
+            new() { Id = 3, FirstName = "Michael", LastName = "Brown", DateOfBirth = new DateTime(1978, 11, 8), Gender = "Male", Phone = "(555) 345-6789", Email = "michael.brown@email.com", IsActive = false },
+            new() { Id = 4, FirstName = "Emily", LastName = "Davis", DateOfBirth = new DateTime(1990, 5, 30), Gender = "Female", Phone = "(555) 456-7890", Email = "emily.davis@email.com", IsActive = true },
+            new() { Id = 5, FirstName = "Robert", LastName = "Wilson", DateOfBirth = new DateTime(1965, 12, 12), Gender = "Male", Phone = "(555) 567-8901", Email = "robert.wilson@email.com", IsActive = true }
+        };
+    }
+
+    /// <summary>
+    /// Handles search functionality when user types in the search box
+    /// </summary>
+    private async Task HandleSearch(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+        await ApplyFilters();
+    }
+
+    /// <summary>
+    /// Clears the current search term and resets the patient list
+    /// </summary>
+    private async Task ClearSearch()
+    {
+        searchTerm = string.Empty;
+        await ApplyFilters();
+    }
+
+    /// <summary>
+    /// Sets the active filter (all, active, inactive) and applies it to the patient list
+    /// </summary>
+    private async Task SetFilter(string filter)
+    {
+        selectedFilter = filter;
+        await ApplyFilters();
+    }
+
+    /// <summary>
+    /// Applies the current search term and filter to the patient list
+    /// </summary>
+    private Task ApplyFilters()
+    {
+        var filtered = patients.AsEnumerable();
+
+        // Apply status filter
+        if (selectedFilter == "active")
+            filtered = filtered.Where(p => p.IsActive);
+        else if (selectedFilter == "inactive")
+            filtered = filtered.Where(p => !p.IsActive);
+
+        // Apply search filter
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            var term = searchTerm.ToLower();
+            filtered = filtered.Where(p =>
+                p.Id.ToString().Contains(term) ||
+                p.FullName.ToLower().Contains(term) ||
+                (!string.IsNullOrEmpty(p.Phone) && p.Phone.Contains(term)) ||
+                (!string.IsNullOrEmpty(p.Email) && p.Email.ToLower().Contains(term))
+            );
+        }
+
+        filteredPatients = filtered.ToList();
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Gets the number of exams for a specific patient
+    /// </summary>
+    private int GetExamCount(int patientId)
+    {
+        // Sample exam counts - in real implementation, this would query the database
+        return patientId switch
+        {
+            1 => 5,
+            2 => 3,
+            3 => 8,
+            4 => 2,
+            5 => 12,
+            _ => 0
+        };
+    }
+
+    /// <summary>
+    /// Gets the last visit date for a specific patient
+    /// </summary>
+    private string GetLastVisit(int patientId)
+    {
+        // Sample last visit dates - in real implementation, this would query the database
+        var lastVisit = patientId switch
+        {
+            1 => DateTime.Now.AddDays(-5),
+            2 => DateTime.Now.AddDays(-12),
+            3 => DateTime.Now.AddDays(-45),
+            4 => DateTime.Now.AddDays(-8),
+            5 => DateTime.Now.AddDays(-2),
+            _ => DateTime.Now.AddDays(-30)
+        };
+        
+        return lastVisit.ToString("MMM dd");
+    }
+
+    /// <summary>
+    /// Views the patient details by selecting the patient (shows in side panel)
+    /// </summary>
+    private void ViewPatientDetails(int patientId)
+    {
+        SelectPatient(patientId);
+    }
+
+    /// <summary>
+    /// Navigates to the edit patient page
+    /// </summary>
+    private void EditPatient(int patientId)
+    {
+        Navigation.NavigateTo($"/patients/edit/{patientId}");
+    }
+
+    /// <summary>
+    /// Deletes a patient after confirmation
+    /// </summary>
+    private async Task DeletePatient(int patientId)
+    {
+        // In a real implementation, you would show a confirmation dialog
+        // and call the API to delete the patient
+        try
+        {
+            var patient = patients.FirstOrDefault(p => p.Id == patientId);
+            if (patient != null)
+            {
+                // For now, just remove from local list (in real app, call API first)
+                patients.Remove(patient);
+                await ApplyFilters();
+                
+                // If this was the selected patient, clear selection
+                if (selectedPatientId == patientId)
+                {
+                    ClearSelection();
+                }
+                
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting patient: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Shows the add patient modal or navigates to add patient page
+    /// </summary>
+    private void ShowAddPatientModal()
+    {
+        Navigation.NavigateTo("/patients/add");
+    }
+
+    /// <summary>
+    /// Selects a patient to show details in the right panel
+    /// </summary>
+    private void SelectPatient(int patientId)
+    {
+        selectedPatientId = patientId;
+        selectedPatient = filteredPatients.FirstOrDefault(p => p.Id == patientId);
+        LoadPatientNotes();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Clears the patient selection
+    /// </summary>
+    private void ClearSelection()
+    {
+        selectedPatientId = 0;
+        selectedPatient = null;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Sets the active tab in the patient detail panel
+    /// </summary>
+    private void SetActiveTab(string tab)
+    {
+        activeTab = tab;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Views previous exams for the selected patient
+    /// </summary>
+    private void ViewPreviousExams(int patientId)
+    {
+        Navigation.NavigateTo($"/patients/{patientId}/exams");
+    }
+
+    /// <summary>
+    /// Begins a new scan for the selected patient
+    /// </summary>
+    private void BeginScan(int patientId)
+    {
+        Navigation.NavigateTo($"/patients/{patientId}/scan");
+    }
+
+    /// <summary>
+    /// Loads notes for the selected patient
+    /// </summary>
+    private void LoadPatientNotes()
+    {
+        if (selectedPatientId <= 0) return;
+        
+        // Initialize sample data if not already loaded
+        if (!allPatientNotes.ContainsKey(1))
+        {
+            allPatientNotes[1] = new List<PatientNote>
+            {
+                new() { Id = 1, PatientId = 1, Title = "Need Eye scans", Content = "Patient requires comprehensive eye examination", 
+                       Author = "Vatsal", CreatedDate = DateTime.Now.AddDays(-1) },
+            };
+        }
+        
+        if (!allPatientNotes.ContainsKey(2))
+        {
+            allPatientNotes[2] = new List<PatientNote>
+            {
+                new() { Id = 2, PatientId = 2, Title = "Follow-up required", Content = "Schedule follow-up in 2 weeks", 
+                       Author = "Dr. Smith", CreatedDate = DateTime.Now.AddDays(-3) },
+            };
+        }
+        
+        // Load notes for the selected patient (create empty list if none exist)
+        if (allPatientNotes.ContainsKey(selectedPatientId))
+        {
+            patientNotes = allPatientNotes[selectedPatientId];
+        }
+        else
+        {
+            patientNotes = new List<PatientNote>();
+            allPatientNotes[selectedPatientId] = patientNotes;
+        }
+    }
+
+    /// <summary>
+    /// Saves a new note for the selected patient
+    /// </summary>
+    private async Task SaveNote()
+    {
+        if (string.IsNullOrWhiteSpace(newNoteContent) || selectedPatientId <= 0) return;
+
+        try
+        {
+            // Generate a unique ID across all notes
+            var allNotes = allPatientNotes.Values.SelectMany(n => n).ToList();
+            var maxId = allNotes.Any() ? allNotes.Max(n => n.Id) : 0;
+            
+            var newNote = new PatientNote
+            {
+                Id = maxId + 1,
+                PatientId = selectedPatientId,
+                Title = newNoteContent.Length > 20 ? newNoteContent[..20] + "..." : newNoteContent,
+                Content = newNoteContent,
+                Author = "Current User", // In real implementation, get from auth context
+                CreatedDate = DateTime.Now
+            };
+
+            // Ensure the patient has a notes list
+            if (!allPatientNotes.ContainsKey(selectedPatientId))
+            {
+                allPatientNotes[selectedPatientId] = new List<PatientNote>();
+            }
+            
+            allPatientNotes[selectedPatientId].Add(newNote);
+            patientNotes = allPatientNotes[selectedPatientId]; // Update local reference
+            newNoteContent = string.Empty;
+            
+            // In real implementation, save to API
+            // await NoteService.CreateAsync(newNote);
+            
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving note: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Deletes a patient note
+    /// </summary>
+    private async Task DeleteNote(int noteId)
+    {
+        try
+        {
+            if (allPatientNotes.ContainsKey(selectedPatientId))
+            {
+                var note = allPatientNotes[selectedPatientId].FirstOrDefault(n => n.Id == noteId);
+                if (note != null)
+                {
+                    allPatientNotes[selectedPatientId].Remove(note);
+                    patientNotes = allPatientNotes[selectedPatientId]; // Update local reference
+                    
+                    // In real implementation, delete from API
+                    // await NoteService.DeleteAsync(noteId);
+                    
+                    StateHasChanged();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting note: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Patient Note model for UI
+    /// </summary>
+    public class PatientNote
+    {
+        public int Id { get; set; }
+        public int PatientId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+        public string Author { get; set; } = string.Empty;
+        public DateTime CreatedDate { get; set; }
+    }
+
 }
