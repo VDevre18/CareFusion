@@ -461,16 +461,27 @@ namespace CareFusion.Core.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("DefaultClinicSiteId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("FirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<string>("LastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime?>("ModifiedAtUtc")
                         .HasColumnType("datetime2");
@@ -486,7 +497,8 @@ namespace CareFusion.Core.Migrations
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("User");
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
@@ -500,6 +512,8 @@ namespace CareFusion.Core.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DefaultClinicSiteId");
 
                     b.HasIndex("Email")
                         .IsUnique();
@@ -552,6 +566,15 @@ namespace CareFusion.Core.Migrations
                         .IsRequired();
 
                     b.Navigation("Patient");
+                });
+
+            modelBuilder.Entity("CareFusion.Core.Entities.User", b =>
+                {
+                    b.HasOne("CareFusion.Core.Entities.ClinicSite", "DefaultClinicSite")
+                        .WithMany()
+                        .HasForeignKey("DefaultClinicSiteId");
+
+                    b.Navigation("DefaultClinicSite");
                 });
 
             modelBuilder.Entity("CareFusion.Core.Entities.Exam", b =>
