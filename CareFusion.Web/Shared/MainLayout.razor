@@ -1,18 +1,196 @@
 @inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
-
-    <main>
-        <div class="top-row px-4">
-            <h1 class="brand">CareFusion</h1>
-            <LoginDisplay />
+<div class="medicare-layout">
+    <!-- Header Bar -->
+    <header class="header-bar">
+        <div class="header-left">
+            <div class="app-logo">
+                <i class="bi bi-activity"></i>
+                <span class="app-name">CareFusion</span>
+                <span class="app-subtitle">Medical Management</span>
+            </div>
         </div>
+        
+        <div class="header-center">
+            <div class="status-indicators">
+                <span class="status-item">
+                    <i class="bi bi-camera"></i> Camera: Connected
+                </span>
+                <span class="status-item">
+                    <i class="bi bi-wifi"></i> Network: WiFi Connected
+                </span>
+                <span class="status-item">
+                    Org ID: <strong>MED-001</strong>
+                </span>
+                <span class="status-item">
+                    Location: <strong>@currentClinicSite</strong>
+                </span>
+            </div>
+        </div>
+        
+        <div class="header-right">
+            <div class="user-info">
+                <span class="user-details">
+                    <strong>User:</strong> admin <strong>v2.1.0</strong>
+                </span>
+                <div class="sync-status">
+                    <i class="bi bi-arrow-repeat"></i> Sync: Active
+                </div>
+                <button class="btn btn-outline-danger btn-sm ms-2" @onclick="HandleLogout">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </button>
+            </div>
+        </div>
+    </header>
 
-        <article class="content px-4">
+    <div class="main-content">
+        <!-- Collapsible Sidebar Navigation -->
+        <aside class="sidebar @(sidebarCollapsed ? "collapsed" : "")">
+            <div class="sidebar-header">
+                <button class="sidebar-toggle" @onclick="ToggleSidebar">
+                    <i class="bi bi-list"></i>
+                </button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <NavLink class="nav-item" href="/" Match="NavLinkMatch.All" title="Patient List">
+                        <i class="bi bi-people"></i>
+                        <span class="nav-text">Patient List</span>
+                    </NavLink>
+                    <NavLink class="nav-item" href="/image-cloud" title="Image Cloud">
+                        <i class="bi bi-cloud"></i>
+                        <span class="nav-text">Image Cloud</span>
+                    </NavLink>
+                    <NavLink class="nav-item" href="/favorite-folder" title="Favorite Folder">
+                        <i class="bi bi-heart"></i>
+                        <span class="nav-text">Favorite Folder</span>
+                    </NavLink>
+                    <NavLink class="nav-item" href="/change-clinical-site" title="Change Clinical Site">
+                        <i class="bi bi-building"></i>
+                        <span class="nav-text">Change Clinical Site</span>
+                    </NavLink>
+                    <NavLink class="nav-item" href="/support" title="Support">
+                        <i class="bi bi-question-circle"></i>
+                        <span class="nav-text">Support</span>
+                    </NavLink>
+                </div>
+                
+                <AuthorizeView Roles="Admin">
+                    <div class="nav-section">
+                        <div class="nav-section-header">
+                            <span class="nav-text">Admin</span>
+                        </div>
+                        <NavLink class="nav-item admin" href="/deleted-patients" title="Deleted Patients">
+                            <i class="bi bi-trash"></i>
+                            <span class="nav-text">Deleted Patients</span>
+                            <span class="admin-badge">Admin</span>
+                        </NavLink>
+                        <NavLink class="nav-item admin" href="/duplicate-patients" title="Duplicate Patients">
+                            <i class="bi bi-files"></i>
+                            <span class="nav-text">Duplicate Patients</span>
+                            <span class="admin-badge">Admin</span>
+                        </NavLink>
+                        <NavLink class="nav-item admin" href="/deleted-images" title="Deleted Images">
+                            <i class="bi bi-image"></i>
+                            <span class="nav-text">Deleted Images</span>
+                            <span class="admin-badge">Admin</span>
+                        </NavLink>
+                        <NavLink class="nav-item admin" href="/manage-users" title="Manage Users">
+                            <i class="bi bi-people-fill"></i>
+                            <span class="nav-text">Manage Users</span>
+                            <span class="admin-badge">Admin</span>
+                        </NavLink>
+                        <NavLink class="nav-item admin" href="/manage-clinic-sites" title="Manage Clinic Sites">
+                            <i class="bi bi-building-fill"></i>
+                            <span class="nav-text">Manage Clinic Sites</span>
+                            <span class="admin-badge">Admin</span>
+                        </NavLink>
+                        <NavLink class="nav-item admin" href="/share-data" title="Share Data">
+                            <i class="bi bi-share"></i>
+                            <span class="nav-text">Share Data</span>
+                            <span class="admin-badge">Admin</span>
+                        </NavLink>
+                        <NavLink class="nav-item admin" href="/manage-account" title="Manage Account">
+                            <i class="bi bi-person-circle"></i>
+                            <span class="nav-text">Manage Account</span>
+                            <span class="admin-badge">Admin</span>
+                        </NavLink>
+                        <NavLink class="nav-item admin" href="/settings" title="Settings">
+                            <i class="bi bi-gear"></i>
+                            <span class="nav-text">Settings</span>
+                            <span class="admin-badge">Admin</span>
+                        </NavLink>
+                    </div>
+                </AuthorizeView>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
             @Body
-        </article>
-    </main>
+        </main>
+    </div>
 </div>
+
+@code {
+    private string currentClinicSite = "Main Hospital";
+    private bool sidebarCollapsed = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var storedSite = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "currentClinicSite");
+                if (!string.IsNullOrEmpty(storedSite))
+                {
+                    currentClinicSite = storedSite;
+                    StateHasChanged();
+                }
+                
+                // Load sidebar state from localStorage
+                var storedSidebarState = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "sidebarCollapsed");
+                if (!string.IsNullOrEmpty(storedSidebarState) && bool.TryParse(storedSidebarState, out bool collapsed))
+                {
+                    sidebarCollapsed = collapsed;
+                    StateHasChanged();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading stored settings: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Toggles the sidebar collapsed state
+    /// </summary>
+    private async Task ToggleSidebar()
+    {
+        sidebarCollapsed = !sidebarCollapsed;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "sidebarCollapsed", sidebarCollapsed.ToString());
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving sidebar state: {ex.Message}");
+        }
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Handles user logout functionality
+    /// </summary>
+    private async Task HandleLogout()
+    {
+        // Implementation for logout
+        Navigation.NavigateTo("/login", true);
+    }
+    
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
+}

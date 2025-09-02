@@ -3,6 +3,8 @@
 @attribute [AllowAnonymous]
 @inject IAuthService Auth
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@using CareFusion.Web.Services
 
 <PageTitle>Login - CareFusion</PageTitle>
 
@@ -43,6 +45,12 @@
                     </button>
                 </div>
             </EditForm>
+            
+            <div class="forgot-password-section mt-3 text-center">
+                <button type="button" class="btn btn-link btn-sm text-decoration-none" @onclick="HandleForgotPassword">
+                    Forgot Password?
+                </button>
+            </div>
             
             <div class="demo-credentials mt-3">
                 <small class="text-muted">
@@ -107,14 +115,6 @@
         public string Password { get; set; } = "";
     }
     
-    protected override async Task OnInitializedAsync()
-    {
-        // If already logged in, redirect to dashboard
-        if (Auth.CurrentUser != null)
-        {
-            Navigation.NavigateTo("/");
-        }
-    }
     
     private async Task HandleLogin()
     {
@@ -126,6 +126,16 @@
             var success = await Auth.LoginAsync(loginModel.Username, loginModel.Password);
             if (success)
             {
+                // Update authentication state
+                if (AuthStateProvider is CustomAuthenticationStateProvider customProvider)
+                {
+                    var currentUser = Auth.CurrentUser;
+                    await customProvider.MarkUserAsAuthenticated(
+                        loginModel.Username, 
+                        currentUser?.Role, 
+                        currentUser?.Email,
+                        currentUser?.DefaultClinicSiteId);
+                }
                 Navigation.NavigateTo("/");
             }
             else
@@ -141,5 +151,12 @@
         {
             isLoading = false;
         }
+    }
+    
+    private void HandleForgotPassword()
+    {
+        // For now, show a placeholder message. In a real application, 
+        // this would navigate to a forgot password page or show a modal
+        errorMessage = "Forgot password functionality will be implemented. Please contact your administrator.";
     }
 }

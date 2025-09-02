@@ -14,10 +14,15 @@ public static class BusinessExtensions
         services.AddScoped<PatientManager>();
         services.AddScoped<ExamManager>();
         services.AddScoped<AuthManager>();
+        services.AddScoped<UserManager>();
+        services.AddScoped<ClinicSiteManager>();
+        services.AddScoped<PatientNoteManager>();
 
         // Validators
         services.AddScoped<IValidator<PatientDto>, PatientValidator>();
         services.AddScoped<IValidator<ExamDto>, ExamValidator>();
+        services.AddScoped<IValidator<UserDto>, UserValidator>();
+        services.AddScoped<IValidator<ClinicSiteDto>, ClinicSiteValidator>();
 
         return services;
     }

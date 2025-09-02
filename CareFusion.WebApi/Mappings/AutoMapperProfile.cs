@@ -15,5 +15,7 @@ public class EntityToDtoProfile : Profile
 
         CreateMap<Exam, ExamDto>();
         CreateMap<User, UserDto>();
+        CreateMap<ClinicSite, ClinicSiteDto>();
+        CreateMap<PatientNote, PatientNoteDto>();
     }
 }

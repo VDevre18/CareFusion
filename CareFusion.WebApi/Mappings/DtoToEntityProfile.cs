@@ -11,6 +11,9 @@ public class DtoToEntityProfile : Profile
     {
         CreateMap<PatientDto, Patient>();
         CreateMap<ExamDto, Exam>();
-        CreateMap<UserDto, User>();
+        CreateMap<UserDto, User>()
+            .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()); // Password handled separately
+        CreateMap<ClinicSiteDto, ClinicSite>();
+        CreateMap<PatientNoteDto, PatientNote>();
     }
 }
