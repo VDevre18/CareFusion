@@ -15,6 +15,11 @@ public static class ServiceCollectionExtensions
         // Register repositories
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<IExamRepository, ExamRepository>();
+        services.AddScoped<IExamImageRepository, ExamImageRepository>();
+        services.AddScoped<IPatientNoteRepository, PatientNoteRepository>();
+        services.AddScoped<IPatientReportRepository, PatientReportRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IClinicSiteRepository, ClinicSiteRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;
