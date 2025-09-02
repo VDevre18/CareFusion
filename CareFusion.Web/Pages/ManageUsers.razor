@@ -1,0 +1,201 @@
+@page "/manage-users"
+@attribute [Authorize]
+@using CareFusion.Model.Dtos
+@using CareFusion.Web.Services.Interfaces
+@inject IUserService UserService
+@inject NavigationManager Navigation
+
+<PageTitle>User Management - CareFusion</PageTitle>
+
+<div class="manage-users-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>User Management</h2>
+        <div class="d-flex gap-2">
+            <button class="btn btn-warning" @onclick="DeactivateMultipleUsers">
+                Deactivate Users
+            </button>
+            <button class="btn btn-primary" @onclick="ShowAddUserModal">
+                Create New User
+            </button>
+        </div>
+    </div>
+
+    <div class="search-section mb-4">
+        <input type="text" class="form-control search-input" placeholder="Search by name" @bind="searchTerm" @oninput="OnSearchTermChanged" />
+    </div>
+
+    <div class="users-list">
+        <div class="row fw-bold border-bottom pb-2 mb-3">
+            <div class="col-3">Name</div>
+            <div class="col-3">Username</div>
+            <div class="col-2">Active</div>
+            <div class="col-4"></div>
+        </div>
+
+        @if (filteredUsers.Any())
+        {
+            @foreach (var user in filteredUsers)
+            {
+                <div class="row align-items-center py-2 border-bottom">
+                    <div class="col-3">
+                        @if (!string.IsNullOrEmpty(user.FirstName) || !string.IsNullOrEmpty(user.LastName))
+                        {
+                            <text>@user.FirstName @user.LastName</text>
+                        }
+                        else
+                        {
+                            <text>@user.Username</text>
+                        }
+                    </div>
+                    <div class="col-3">@user.Username</div>
+                    <div class="col-2">@(user.IsActive ? "Yes" : "No")</div>
+                    <div class="col-4 text-end">
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button class="btn btn-primary btn-action" @onclick="() => EditUser(user.Id)">
+                                Edit
+                            </button>
+                            <button class="btn btn-danger btn-action" @onclick="() => ToggleUserStatus(user.Id)">
+                                @(user.IsActive ? "Deactivate" : "Activate")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="text-center text-muted py-5">
+                No users found
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .manage-users-container {
+        padding: 20px;
+    }
+
+    .search-input {
+        max-width: 400px;
+        border-bottom: 2px solid #007bff;
+        border-radius: 0;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+        box-shadow: none;
+        padding-left: 0;
+    }
+
+    .search-input:focus {
+        border-bottom-color: #0056b3;
+        box-shadow: none;
+    }
+
+    .btn-action {
+        min-width: 80px;
+        border-radius: 20px;
+        font-weight: 500;
+        padding: 8px 16px;
+    }
+
+    .users-list {
+        font-size: 16px;
+    }
+
+    .border-bottom {
+        border-bottom: 1px solid #dee2e6 !important;
+    }
+</style>
+
+@code {
+    private List<UserDto> users = new();
+    private List<UserDto> filteredUsers = new();
+    private string searchTerm = "";
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+            
+            var result = await UserService.SearchAsync(searchTerm, 1, 100);
+            users = result.Items.ToList();
+            
+            FilterUsers();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading users: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OnSearchTermChanged(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? "";
+        FilterUsers();
+    }
+
+    private void FilterUsers()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredUsers = users.ToList();
+        }
+        else
+        {
+            var lowerSearchTerm = searchTerm.ToLower();
+            filteredUsers = users.Where(u => 
+                (!string.IsNullOrEmpty(u.FirstName) && u.FirstName.ToLower().Contains(lowerSearchTerm)) ||
+                (!string.IsNullOrEmpty(u.LastName) && u.LastName.ToLower().Contains(lowerSearchTerm)) ||
+                u.Username.ToLower().Contains(lowerSearchTerm)
+            ).ToList();
+        }
+        StateHasChanged();
+    }
+
+    private void ShowAddUserModal()
+    {
+        Navigation.NavigateTo("/manage-users/add");
+    }
+
+    private void EditUser(int userId)
+    {
+        Navigation.NavigateTo($"/manage-users/edit/{userId}");
+    }
+
+    private async Task ToggleUserStatus(int userId)
+    {
+        try
+        {
+            var userIndex = users.FindIndex(u => u.Id == userId);
+            if (userIndex >= 0)
+            {
+                users[userIndex].IsActive = !users[userIndex].IsActive;
+                FilterUsers(); // Refresh filtered list
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error toggling user status: {ex.Message}");
+        }
+    }
+
+    private void DeactivateMultipleUsers()
+    {
+        // Placeholder for bulk deactivation functionality
+        // In real implementation, this would show a modal to select users to deactivate
+    }
+}

@@ -17,16 +17,16 @@ public class ExamsController : ControllerBase
         _manager = manager;
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<ExamDto>>> Get(Guid id, CancellationToken ct)
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<ApiResponse<ExamDto>>> Get(int id, CancellationToken ct)
     {
         var result = await _manager.GetByIdAsync(id, ct);
         return Ok(result);
     }
 
-    [HttpGet("by-patient/{patientId:guid}")]
+    [HttpGet("by-patient/{patientId:int}")]
     public async Task<ActionResult<ApiResponse<PagedResult<ExamDto>>>> ListByPatient(
-        Guid patientId,
+        int patientId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken ct = default)
@@ -42,8 +42,8 @@ public class ExamsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPut("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<ExamDto>>> Update(Guid id, ExamDto dto, CancellationToken ct)
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<ApiResponse<ExamDto>>> Update(int id, ExamDto dto, CancellationToken ct)
     {
         dto = dto with { Id = id };
         var result = await _manager.UpdateAsync(dto, User.Identity?.Name, ct);

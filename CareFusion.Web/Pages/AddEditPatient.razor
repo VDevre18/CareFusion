@@ -1,92 +1,353 @@
-// Placeholder for Pages/AddEditPatient.razor
 @page "/patients/add"
-@page "/patients/edit/{id:guid}"
+@page "/patients/edit/{id:int}"
+@using CareFusion.Model.Dtos
+@using CareFusion.Web.Services.Interfaces
+@using System.ComponentModel.DataAnnotations
 @inject IPatientService PatientService
-@inject NavigationManager Nav
+@inject IClinicSiteService ClinicSiteService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
-<h3>@(isEdit ? "Edit Patient" : "Add Patient")</h3>
+<PageTitle>@(isEdit ? "Edit Patient" : "Add Patient") - CareFusion</PageTitle>
 
-@if (model is null) { <p>Loading�</p> }
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <button class="btn btn-outline-secondary btn-sm mb-2" @onclick="Cancel">
+            <i class="bi bi-arrow-left"></i> Back to Patients
+        </button>
+        <h2>@(isEdit ? "Edit Patient" : "Add Patient")</h2>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Loading patient information...</p>
+    </div>
+}
 else
 {
-    <EditForm Model="model" OnValidSubmit="Save">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-        <div class="form-grid">
-            <InputText @bind-Value="firstName" placeholder="First Name" />
-            <InputText @bind-Value="lastName" placeholder="Last Name" />
-            <InputText @bind-Value="mrn" placeholder="MRN" />
-            <InputDate @bind-Value="dob" />
-            <InputText @bind-Value="gender" placeholder="Gender" />
+    <div class="card">
+        <div class="card-body">
+            <EditForm Model="patientModel" OnValidSubmit="Save">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="firstName" class="form-label">First Name *</label>
+                        <InputText id="firstName" class="form-control" @bind-Value="patientModel.FirstName" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="lastName" class="form-label">Last Name *</label>
+                        <InputText id="lastName" class="form-control" @bind-Value="patientModel.LastName" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label for="mrn" class="form-label">MRN</label>
+                        <InputText id="mrn" class="form-control" @bind-Value="patientModel.MRN" />
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="dateOfBirth" class="form-label">Date of Birth</label>
+                        <InputDate id="dateOfBirth" class="form-control" @bind-Value="patientModel.DateOfBirth" />
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="gender" class="form-label">Gender</label>
+                        <InputSelect id="gender" class="form-select" @bind-Value="patientModel.Gender">
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="clinicSiteId" class="form-label">Clinic Site</label>
+                        <InputSelect id="clinicSiteId" class="form-select" @bind-Value="patientModel.ClinicSiteId" @bind-Value:after="OnClinicSiteChanged">
+                            <option value="">Select Clinic Site</option>
+                            @foreach (var site in availableClinicSites)
+                            {
+                                <option value="@site.Id">@site.Name</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-secondary" @onclick="Cancel">
+                        <i class="bi bi-x"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        <i class="bi bi-check"></i> @(isEdit ? "Update" : "Save") Patient
+                    </button>
+                </div>
+            </EditForm>
         </div>
-        <button type="submit">Save</button>
-        <button type="button" @onclick="Cancel">Cancel</button>
-    </EditForm>
+    </div>
+}
+
+@if (showTransferModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                        Patient Transfer Confirmation
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <p>A patient with similar details was found:</p>
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <strong>@existingPatient?.FirstName @existingPatient?.LastName</strong><br>
+                            <small class="text-muted">
+                                DOB: @existingPatient?.DateOfBirth?.ToString("MM/dd/yyyy") | 
+                                Current Location: @existingPatient?.ClinicSiteName
+                            </small>
+                        </div>
+                    </div>
+                    <p class="mt-3">Would you like to transfer this patient to the selected clinic site <strong>@selectedClinicSiteName</strong>?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelTransfer">
+                        <i class="bi bi-x"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-warning" @onclick="TransferExistingPatient">
+                        <i class="bi bi-arrow-right"></i> Transfer Patient
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="CreateNewPatient">
+                        <i class="bi bi-person-plus"></i> Create New Patient
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
 }
 
 @code {
-    [Parameter] public Guid? id { get; set; }
-    CareFusion.Model.Dtos.PatientDto? model;
-    bool isEdit => id.HasValue;
-    
-    string firstName = "";
-    string lastName = "";
-    string? mrn = "";
-    string? gender = "";
-    DateTime? dob;
+    [Parameter] public int? id { get; set; }
+
+    private PatientModel patientModel = new();
+    private bool isEdit => id.HasValue;
+    private bool isLoading = false;
+    private bool isSaving = false;
+    private bool showTransferModal = false;
+    private List<ClinicSiteDto> availableClinicSites = new();
+    private PatientDto? existingPatient = null;
+    private string selectedClinicSiteName = "";
+    private int currentClinicSiteId = 0;
 
     protected override async Task OnParametersSetAsync()
     {
-        if (isEdit)
+        await LoadClinicSites();
+        await LoadCurrentClinicSite();
+
+        if (isEdit && id.HasValue)
         {
-            model = await PatientService.GetAsync(id!.Value);
-            if (model != null)
+            isLoading = true;
+            try
             {
-                firstName = model.FirstName;
-                lastName = model.LastName;
-                mrn = model.MRN;
-                gender = model.Gender;
-                dob = model.DateOfBirth;
+                var patient = await PatientService.GetAsync(id.Value);
+                if (patient != null)
+                {
+                    patientModel = new PatientModel
+                    {
+                        Id = patient.Id,
+                        FirstName = patient.FirstName ?? "",
+                        LastName = patient.LastName ?? "",
+                        MRN = patient.MRN,
+                        DateOfBirth = patient.DateOfBirth,
+                        Gender = patient.Gender,
+                        ClinicSiteId = patient.ClinicSiteId ?? currentClinicSiteId
+                    };
+                }
+                else
+                {
+                    // Patient not found, redirect to list
+                    Navigation.NavigateTo("/");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading patient: {ex.Message}");
+                Navigation.NavigateTo("/");
+            }
+            finally
+            {
+                isLoading = false;
             }
         }
         else
         {
-            firstName = "";
-            lastName = "";
-            mrn = "";
-            gender = "";
-            dob = DateTime.Now;
-            model = new CareFusion.Model.Dtos.PatientDto 
-            { 
-                Id = Guid.NewGuid(),
-                FirstName = firstName,
-                LastName = lastName,
-                MRN = mrn,
-                Gender = gender,
-                DateOfBirth = dob
-            };
+            // New patient - default to current clinic site
+            patientModel = new PatientModel { ClinicSiteId = currentClinicSiteId };
+        }
+    }
+
+    private async Task LoadClinicSites()
+    {
+        try
+        {
+            var result = await ClinicSiteService.SearchAsync("", 1, 100);
+            availableClinicSites = result.Items.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading clinic sites: {ex.Message}");
+        }
+    }
+
+    private async Task LoadCurrentClinicSite()
+    {
+        try
+        {
+            var siteName = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "currentClinicSite");
+            if (string.IsNullOrEmpty(siteName))
+                siteName = "Main Medical Center";
+
+            var site = availableClinicSites.FirstOrDefault(s => s.Name == siteName);
+            currentClinicSiteId = site?.Id ?? 1;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading current clinic site: {ex.Message}");
+            currentClinicSiteId = 1; // Default to first site
         }
     }
 
     private async Task Save()
     {
-        model = new CareFusion.Model.Dtos.PatientDto 
-        { 
-            Id = isEdit ? model!.Id : Guid.NewGuid(),
-            FirstName = firstName,
-            LastName = lastName,
-            MRN = mrn,
-            Gender = gender,
-            DateOfBirth = dob
-        };
+        // For new patients, check if there's a potential duplicate
+        if (!isEdit)
+        {
+            var duplicates = await PatientService.GetDuplicatesAsync();
+            var potentialMatch = duplicates.FirstOrDefault(p => 
+                p.FirstName.Equals(patientModel.FirstName, StringComparison.OrdinalIgnoreCase) &&
+                p.LastName.Equals(patientModel.LastName, StringComparison.OrdinalIgnoreCase) &&
+                p.DateOfBirth?.Date == patientModel.DateOfBirth?.Date &&
+                p.ClinicSiteId != patientModel.ClinicSiteId);
 
-        if (isEdit) await PatientService.UpdateAsync(model!);
-        else await PatientService.CreateAsync(model!);
-        Nav.NavigateTo("/patients");
+            if (potentialMatch != null)
+            {
+                existingPatient = potentialMatch;
+                selectedClinicSiteName = availableClinicSites.FirstOrDefault(s => s.Id == patientModel.ClinicSiteId)?.Name ?? "";
+                showTransferModal = true;
+                return;
+            }
+        }
+
+        await SavePatient(false);
+    }
+
+    private async Task SavePatient(bool forceCreate = false)
+    {
+        try
+        {
+            isSaving = true;
+
+            var patientDto = new PatientDto
+            {
+                Id = patientModel.Id,
+                FirstName = patientModel.FirstName,
+                LastName = patientModel.LastName,
+                MRN = patientModel.MRN,
+                DateOfBirth = patientModel.DateOfBirth,
+                Gender = patientModel.Gender,
+                ClinicSiteId = patientModel.ClinicSiteId
+            };
+
+            if (isEdit)
+            {
+                await PatientService.UpdateAsync(patientDto);
+            }
+            else
+            {
+                await PatientService.CreateAsync(patientDto);
+            }
+
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving patient: {ex.Message}");
+            // In a real app, show error message to user
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task OnClinicSiteChanged()
+    {
+        selectedClinicSiteName = availableClinicSites.FirstOrDefault(s => s.Id == patientModel.ClinicSiteId)?.Name ?? "";
+    }
+
+    private async Task TransferExistingPatient()
+    {
+        if (existingPatient != null && patientModel.ClinicSiteId > 0)
+        {
+            try
+            {
+                await PatientService.TransferPatientToClinicAsync(existingPatient.Id, patientModel.ClinicSiteId);
+                showTransferModal = false;
+                Navigation.NavigateTo("/");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error transferring patient: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task CreateNewPatient()
+    {
+        showTransferModal = false;
+        await SavePatient(true);
+    }
+
+    private void CancelTransfer()
+    {
+        showTransferModal = false;
+        existingPatient = null;
     }
 
     private void Cancel()
     {
-        Nav.NavigateTo("/patients");
+        Navigation.NavigateTo("/");
+    }
+
+    public class PatientModel
+    {
+        public int Id { get; set; }
+        
+        [Required]
+        [StringLength(100)]
+        public string FirstName { get; set; } = "";
+        
+        [Required]
+        [StringLength(100)]
+        public string LastName { get; set; } = "";
+        
+        [StringLength(50)]
+        public string? MRN { get; set; }
+        
+        public DateTime? DateOfBirth { get; set; }
+        
+        [StringLength(25)]
+        public string? Gender { get; set; }
+        
+        public int ClinicSiteId { get; set; }
     }
 }

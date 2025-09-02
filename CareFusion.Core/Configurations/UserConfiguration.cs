@@ -13,7 +13,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         b.HasKey(x => x.Id);
 
         b.Property(x => x.RowVersion)
-            .IsRowVersion();
+            .IsRowVersion()
+            .ValueGeneratedOnAddOrUpdate();
 
         b.HasIndex(x => x.Username).IsUnique();
         b.HasIndex(x => x.Email).IsUnique();

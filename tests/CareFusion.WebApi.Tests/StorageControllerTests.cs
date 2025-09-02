@@ -30,7 +30,7 @@ public class StorageControllerTests
     public async Task Upload_WithValidFile_ShouldReturnOkWithUrl()
     {
         // Arrange
-        var examId = Guid.NewGuid();
+        var examId = 1;
         var fileName = "test-image.jpg";
         var contentType = "image/jpeg";
         var fileContent = "fake file content";
@@ -73,7 +73,7 @@ public class StorageControllerTests
     public async Task Upload_WithNullFile_ShouldReturnBadRequest()
     {
         // Arrange
-        var examId = Guid.NewGuid();
+        var examId = 2;
         IFormFile? file = null;
 
         // Act
@@ -85,7 +85,7 @@ public class StorageControllerTests
         
         // Verify the service was not called
         _mockStorageService.Verify(x => x.UploadExamAsync(
-            It.IsAny<Guid>(), 
+            It.IsAny<int>(), 
             It.IsAny<Stream>(), 
             It.IsAny<string>(), 
             It.IsAny<string>(), 
@@ -96,7 +96,7 @@ public class StorageControllerTests
     public async Task Upload_WithEmptyFile_ShouldReturnBadRequest()
     {
         // Arrange
-        var examId = Guid.NewGuid();
+        var examId = 3;
         
         var mockFile = new Mock<IFormFile>();
         mockFile.Setup(f => f.Length).Returns(0);
@@ -110,7 +110,7 @@ public class StorageControllerTests
         
         // Verify the service was not called
         _mockStorageService.Verify(x => x.UploadExamAsync(
-            It.IsAny<Guid>(), 
+            It.IsAny<int>(), 
             It.IsAny<Stream>(), 
             It.IsAny<string>(), 
             It.IsAny<string>(), 
@@ -121,7 +121,7 @@ public class StorageControllerTests
     public async Task Upload_WithLargeFile_ShouldProcessSuccessfully()
     {
         // Arrange
-        var examId = Guid.NewGuid();
+        var examId = 4;
         var fileName = "large-scan.dcm";
         var contentType = "application/dicom";
         var largeContent = new byte[1024 * 1024]; // 1MB file
@@ -154,7 +154,7 @@ public class StorageControllerTests
     public async Task Upload_WhenServiceThrows_ShouldPropagateException()
     {
         // Arrange
-        var examId = Guid.NewGuid();
+        var examId = 5;
         var fileName = "test.jpg";
         
         var mockFile = new Mock<IFormFile>();
@@ -164,7 +164,7 @@ public class StorageControllerTests
         mockFile.Setup(f => f.OpenReadStream()).Returns(new MemoryStream(new byte[100]));
 
         _mockStorageService
-            .Setup(x => x.UploadExamAsync(It.IsAny<Guid>(), It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.UploadExamAsync(It.IsAny<int>(), It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Storage service error"));
 
         // Act & Assert
@@ -180,7 +180,7 @@ public class StorageControllerTests
     public async Task Upload_WithDifferentFileTypes_ShouldProcessSuccessfully(string fileName, string contentType)
     {
         // Arrange
-        var examId = Guid.NewGuid();
+        var examId = 6;
         var fileContent = new byte[1024];
         
         var mockFile = new Mock<IFormFile>();
@@ -217,7 +217,7 @@ public class StorageControllerTests
     public async Task Download_WithValidParameters_ShouldReturnFileResult()
     {
         // Arrange
-        var examId = Guid.NewGuid();
+        var examId = 7;
         var fileName = "test-image.jpg";
         var fileContent = Encoding.UTF8.GetBytes("fake file content");
         var fileStream = new MemoryStream(fileContent);
@@ -242,7 +242,7 @@ public class StorageControllerTests
     public async Task Download_WhenFileNotFound_ShouldPropagateException()
     {
         // Arrange
-        var examId = Guid.NewGuid();
+        var examId = 8;
         var fileName = "nonexistent.jpg";
         
         _mockStorageService
@@ -260,7 +260,7 @@ public class StorageControllerTests
     public async Task Download_WhenServiceThrows_ShouldPropagateException()
     {
         // Arrange
-        var examId = Guid.NewGuid();
+        var examId = 9;
         var fileName = "test.jpg";
         
         _mockStorageService
@@ -281,7 +281,7 @@ public class StorageControllerTests
     public async Task Download_WithDifferentFileNames_ShouldReturnCorrectFileName(string fileName)
     {
         // Arrange
-        var examId = Guid.NewGuid();
+        var examId = 10;
         var fileContent = new byte[1024];
         var fileStream = new MemoryStream(fileContent);
         
@@ -303,7 +303,7 @@ public class StorageControllerTests
     public async Task Download_WithEmptyStream_ShouldReturnEmptyFile()
     {
         // Arrange
-        var examId = Guid.NewGuid();
+        var examId = 11;
         var fileName = "empty.txt";
         var emptyStream = new MemoryStream();
         

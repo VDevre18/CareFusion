@@ -17,8 +17,8 @@ public class PatientsController : ControllerBase
         _manager = manager;
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<PatientDto>>> Get(Guid id, CancellationToken ct)
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<ApiResponse<PatientDto>>> Get(int id, CancellationToken ct)
     {
         var result = await _manager.GetByIdAsync(id, ct);
         return Ok(result);
@@ -29,9 +29,10 @@ public class PatientsController : ControllerBase
         [FromQuery] string? term,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] int? clinicSiteId = null,
         CancellationToken ct = default)
     {
-        var result = await _manager.SearchAsync(term, page, pageSize, ct);
+        var result = await _manager.SearchAsync(term, page, pageSize, clinicSiteId, ct);
         return Ok(result);
     }
 
@@ -42,11 +43,32 @@ public class PatientsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPut("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<PatientDto>>> Update(Guid id, PatientDto dto, CancellationToken ct)
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<ApiResponse<PatientDto>>> Update(int id, PatientDto dto, CancellationToken ct)
     {
-        dto = dto with { Id = id };
+        dto.Id = id;
         var result = await _manager.UpdateAsync(dto, User.Identity?.Name, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("deleted")]
+    public async Task<ActionResult<ApiResponse<List<PatientDto>>>> GetDeleted(CancellationToken ct = default)
+    {
+        var result = await _manager.GetDeletedAsync(ct);
+        return Ok(result);
+    }
+
+    [HttpGet("duplicates")]
+    public async Task<ActionResult<ApiResponse<List<PatientDto>>>> GetDuplicates(CancellationToken ct = default)
+    {
+        var result = await _manager.GetDuplicatesAsync(ct);
+        return Ok(result);
+    }
+
+    [HttpPut("{id:int}/transfer/{newClinicSiteId:int}")]
+    public async Task<ActionResult<ApiResponse<PatientDto>>> TransferToClinic(int id, int newClinicSiteId, CancellationToken ct = default)
+    {
+        var result = await _manager.TransferPatientToClinicAsync(id, newClinicSiteId, User.Identity?.Name, ct);
         return Ok(result);
     }
 }

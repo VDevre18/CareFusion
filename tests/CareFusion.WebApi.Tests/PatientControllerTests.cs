@@ -47,7 +47,7 @@ public class PatientsControllerTests
     public async Task Get_WithValidId_ShouldReturnOkResult()
     {
         // Arrange
-        var patientId = Guid.NewGuid();
+        var patientId = 1;
         var expectedResponse = ApiResponse<PatientDto>.Ok(new PatientDto 
         { 
             Id = patientId,
@@ -77,7 +77,7 @@ public class PatientsControllerTests
     public async Task Get_WithInvalidId_ShouldReturnNotFoundResponse()
     {
         // Arrange
-        var patientId = Guid.NewGuid();
+        var patientId = 2;
         var expectedResponse = ApiResponse<PatientDto>.Fail("Patient not found");
         
         _mockPatientManager
@@ -104,8 +104,8 @@ public class PatientsControllerTests
         
         var patients = new List<PatientDto>
         {
-            new() { Id = Guid.NewGuid(), FirstName = "John", LastName = "Doe", MRN = "TEST001" },
-            new() { Id = Guid.NewGuid(), FirstName = "Jane", LastName = "Johnson", MRN = "TEST002" }
+            new() { Id = 3, FirstName = "John", LastName = "Doe", MRN = "TEST001" },
+            new() { Id = 4, FirstName = "Jane", LastName = "Johnson", MRN = "TEST002" }
         };
         
         var pagedResult = new PagedResult<PatientDto>
@@ -119,11 +119,11 @@ public class PatientsControllerTests
         var expectedResponse = ApiResponse<PagedResult<PatientDto>>.Ok(pagedResult);
         
         _mockPatientManager
-            .Setup(x => x.SearchAsync(searchTerm, page, pageSize, _cancellationToken))
+            .Setup(x => x.SearchAsync(searchTerm, page, pageSize, null, _cancellationToken))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await _controller.Search(searchTerm, page, pageSize, _cancellationToken);
+        var result = await _controller.Search(searchTerm, page, pageSize, null, _cancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -142,9 +142,9 @@ public class PatientsControllerTests
         
         var patients = new List<PatientDto>
         {
-            new() { Id = Guid.NewGuid(), FirstName = "John", LastName = "Doe", MRN = "TEST001" },
-            new() { Id = Guid.NewGuid(), FirstName = "Jane", LastName = "Smith", MRN = "TEST002" },
-            new() { Id = Guid.NewGuid(), FirstName = "Bob", LastName = "Johnson", MRN = "TEST003" }
+            new() { Id = 5, FirstName = "John", LastName = "Doe", MRN = "TEST001" },
+            new() { Id = 6, FirstName = "Jane", LastName = "Smith", MRN = "TEST002" },
+            new() { Id = 7, FirstName = "Bob", LastName = "Johnson", MRN = "TEST003" }
         };
         
         var pagedResult = new PagedResult<PatientDto>
@@ -158,11 +158,11 @@ public class PatientsControllerTests
         var expectedResponse = ApiResponse<PagedResult<PatientDto>>.Ok(pagedResult);
         
         _mockPatientManager
-            .Setup(x => x.SearchAsync(null, page, pageSize, _cancellationToken))
+            .Setup(x => x.SearchAsync(null, page, pageSize, null, _cancellationToken))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await _controller.Search(null, page, pageSize, _cancellationToken);
+        var result = await _controller.Search(null, page, pageSize, null, _cancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -184,7 +184,15 @@ public class PatientsControllerTests
             Gender = "Female"
         };
         
-        var createdPatientDto = patientDto with { Id = Guid.NewGuid() };
+        var createdPatientDto = new PatientDto 
+        { 
+            Id = 8,
+            FirstName = patientDto.FirstName,
+            LastName = patientDto.LastName,
+            MRN = patientDto.MRN,
+            DateOfBirth = patientDto.DateOfBirth,
+            Gender = patientDto.Gender
+        };
         var expectedResponse = ApiResponse<PatientDto>.Ok(createdPatientDto);
         
         _mockPatientManager
@@ -198,7 +206,7 @@ public class PatientsControllerTests
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<ApiResponse<PatientDto>>(okResult.Value);
         Assert.True(response.Success);
-        Assert.NotEqual(Guid.Empty, response.Data!.Id);
+        Assert.NotEqual(0, response.Data!.Id);
         Assert.Equal("New", response.Data.FirstName);
     }
 
@@ -233,7 +241,7 @@ public class PatientsControllerTests
     public async Task Update_WithValidDto_ShouldReturnUpdatedPatient()
     {
         // Arrange
-        var patientId = Guid.NewGuid();
+        var patientId = 9;
         var patientDto = new PatientDto
         {
             Id = patientId,
@@ -265,7 +273,7 @@ public class PatientsControllerTests
     public async Task Update_WithNonExistentId_ShouldReturnNotFound()
     {
         // Arrange
-        var patientId = Guid.NewGuid();
+        var patientId = 10;
         var patientDto = new PatientDto
         {
             Id = patientId,
@@ -294,8 +302,8 @@ public class PatientsControllerTests
     public async Task Update_ShouldOverrideIdFromRoute()
     {
         // Arrange
-        var routeId = Guid.NewGuid();
-        var dtoId = Guid.NewGuid(); // Different ID in DTO
+        var routeId = 11;
+        var dtoId = 12; // Different ID in DTO
         
         var patientDto = new PatientDto
         {
@@ -305,7 +313,14 @@ public class PatientsControllerTests
             MRN = "OVERRIDE001"
         };
         
-        var expectedResponse = ApiResponse<PatientDto>.Ok(patientDto with { Id = routeId });
+        var expectedDto = new PatientDto
+        {
+            Id = routeId,
+            FirstName = patientDto.FirstName,
+            LastName = patientDto.LastName,
+            MRN = patientDto.MRN
+        };
+        var expectedResponse = ApiResponse<PatientDto>.Ok(expectedDto);
         
         _mockPatientManager
             .Setup(x => x.UpdateAsync(It.Is<PatientDto>(p => p.Id == routeId), "test@example.com", _cancellationToken))

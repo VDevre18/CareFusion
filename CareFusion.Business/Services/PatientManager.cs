@@ -22,9 +22,9 @@ public class PatientManager
         _validator = validator;
     }
 
-    public virtual async Task<ApiResponse<PatientDto>> GetByIdAsync(Guid id, CancellationToken ct = default)
+    public virtual async Task<ApiResponse<PatientDto>> GetByIdAsync(int id, CancellationToken ct = default)
     {
-        var entity = await _uow.Patients.GetWithExamsAsync(id, ct);
+        var entity = await _uow.Patients.GetByIdAsync(id, ct);
         if (entity is null)
             return ApiResponse<PatientDto>.Fail("Patient not found");
 
@@ -32,9 +32,9 @@ public class PatientManager
     }
 
     public virtual async Task<ApiResponse<PagedResult<PatientDto>>> SearchAsync(
-        string? term, int page, int pageSize, CancellationToken ct = default)
+        string? term, int page, int pageSize, int? clinicSiteId = null, CancellationToken ct = default)
     {
-        var (items, total) = await _uow.Patients.SearchAsync(term, (page - 1) * pageSize, pageSize, ct);
+        var (items, total) = await _uow.Patients.SearchAsync(term, (page - 1) * pageSize, pageSize, clinicSiteId, ct);
         var result = new PagedResult<PatientDto>
         {
             Items = items.Select(_mapper.Map<PatientDto>).ToList(),
@@ -89,7 +89,7 @@ public class PatientManager
         return await CreateAsync(dto, null, ct);
     }
 
-    public async Task<ApiResponse<bool>> DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<ApiResponse<bool>> DeleteAsync(int id, CancellationToken ct = default)
     {
         var entity = await _uow.Patients.GetByIdAsync(id, ct);
         if (entity is null)
@@ -99,5 +99,37 @@ public class PatientManager
         await _uow.SaveChangesAsync(null, ct);
 
         return ApiResponse<bool>.Ok(true, "Patient deleted successfully");
+    }
+
+    public async Task<ApiResponse<List<PatientDto>>> GetDeletedAsync(CancellationToken ct = default)
+    {
+        var patients = await _uow.Patients.GetDeletedAsync(ct);
+        return ApiResponse<List<PatientDto>>.Ok(patients.Select(_mapper.Map<PatientDto>).ToList());
+    }
+
+    public async Task<ApiResponse<List<PatientDto>>> GetDuplicatesAsync(CancellationToken ct = default)
+    {
+        var duplicateGroups = await _uow.Patients.GetPotentialDuplicatesAsync(ct);
+        var allDuplicates = new List<PatientDto>();
+        
+        foreach (var group in duplicateGroups)
+        {
+            allDuplicates.AddRange(group.Select(_mapper.Map<PatientDto>));
+        }
+        
+        return ApiResponse<List<PatientDto>>.Ok(allDuplicates);
+    }
+
+    public async Task<ApiResponse<PatientDto>> TransferPatientToClinicAsync(int patientId, int newClinicSiteId, string? user, CancellationToken ct = default)
+    {
+        var entity = await _uow.Patients.GetByIdAsync(patientId, ct);
+        if (entity is null)
+            return ApiResponse<PatientDto>.Fail("Patient not found");
+
+        entity.ClinicSiteId = newClinicSiteId;
+        _uow.Patients.Update(entity);
+        await _uow.SaveChangesAsync(user, ct);
+
+        return ApiResponse<PatientDto>.Ok(_mapper.Map<PatientDto>(entity), "Patient transferred successfully");
     }
 }

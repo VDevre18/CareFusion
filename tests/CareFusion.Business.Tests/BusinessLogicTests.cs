@@ -34,7 +34,7 @@ public class PatientManagerTests
     public async Task GetByIdAsync_WithValidId_ReturnsPatient()
     {
         // Arrange
-        var patientId = Guid.NewGuid();
+        var patientId = 1;
         var patient = new Patient 
         { 
             Id = patientId, 
@@ -67,7 +67,7 @@ public class PatientManagerTests
     public async Task GetByIdAsync_WithInvalidId_ReturnsFailure()
     {
         // Arrange
-        var patientId = Guid.NewGuid();
+        var patientId = 2;
         _mockUow.Setup(x => x.Patients.GetWithExamsAsync(patientId, It.IsAny<CancellationToken>()))
                .ReturnsAsync((Patient?)null);
 
@@ -85,7 +85,7 @@ public class PatientManagerTests
         // Arrange
         var patientDto = new PatientDto
         {
-            Id = Guid.NewGuid(),
+            Id = 3,
             FirstName = "Jane",
             LastName = "Smith",
             MRN = "TEST002"
@@ -124,7 +124,7 @@ public class PatientManagerTests
         // Arrange
         var patientDto = new PatientDto
         {
-            Id = Guid.NewGuid(),
+            Id = 4,
             FirstName = "Jane",
             LastName = "Smith",
             MRN = "TEST002"
@@ -149,7 +149,7 @@ public class PatientManagerTests
     public async Task UpdateAsync_WithValidPatient_ReturnsSuccess()
     {
         // Arrange
-        var patientId = Guid.NewGuid();
+        var patientId = 5;
         var patientDto = new PatientDto
         {
             Id = patientId,
@@ -210,11 +210,11 @@ public class ExamManagerTests
     public async Task GetByIdAsync_WithValidId_ReturnsExam()
     {
         // Arrange
-        var examId = Guid.NewGuid();
+        var examId = 10;
         var exam = new Exam
         {
             Id = examId,
-            PatientId = Guid.NewGuid(),
+            PatientId = 11,
             Modality = "CT",
             StudyType = "Chest CT",
             StudyDateUtc = DateTime.UtcNow,
@@ -247,11 +247,11 @@ public class ExamManagerTests
     public async Task ListByPatientAsync_WithValidPatientId_ReturnsExams()
     {
         // Arrange
-        var patientId = Guid.NewGuid();
+        var patientId = 12;
         var exams = new List<Exam>
         {
-            new() { Id = Guid.NewGuid(), PatientId = patientId, Modality = "CT", StudyType = "Chest CT", StudyDateUtc = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), PatientId = patientId, Modality = "MRI", StudyType = "Brain MRI", StudyDateUtc = DateTime.UtcNow.AddDays(-1) }
+            new() { Id = 13, PatientId = patientId, Modality = "CT", StudyType = "Chest CT", StudyDateUtc = DateTime.UtcNow },
+            new() { Id = 14, PatientId = patientId, Modality = "MRI", StudyType = "Brain MRI", StudyDateUtc = DateTime.UtcNow.AddDays(-1) }
         };
 
         var examDtos = exams.Select(e => new ExamDto
@@ -287,8 +287,8 @@ public class ExamManagerTests
         // Arrange
         var examDto = new ExamDto
         {
-            Id = Guid.NewGuid(),
-            PatientId = Guid.NewGuid(),
+            Id = 15,
+            PatientId = 16,
             Modality = "X-Ray",
             StudyType = "Chest X-Ray",
             StudyDateUtc = DateTime.UtcNow,

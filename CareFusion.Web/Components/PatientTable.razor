@@ -20,6 +20,6 @@
 
 @code {
     [Parameter] public IEnumerable<PatientDto> Items { get; set; } = Array.Empty<PatientDto>();
-    [Parameter] public Action<Guid>? OnView { get; set; }
-    [Parameter] public Action<Guid>? OnEdit { get; set; }
+    [Parameter] public Action<int>? OnView { get; set; }
+    [Parameter] public Action<int>? OnEdit { get; set; }
 }

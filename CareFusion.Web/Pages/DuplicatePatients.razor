@@ -1,0 +1,431 @@
+@page "/duplicate-patients"
+@attribute [Authorize]
+@using CareFusion.Model.Dtos
+@using CareFusion.Web.Services.Interfaces
+@inject NavigationManager Navigation
+@inject IPatientService PatientService
+
+<PageTitle>Duplicate Patients - CareFusion</PageTitle>
+
+<div class="duplicate-patients-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Duplicate Patients</h2>
+            <p class="text-muted">Review and manage potential duplicate patient records</p>
+        </div>
+        <button class="btn btn-primary" @onclick="RunDuplicateCheck">
+            <i class="bi bi-search"></i> Run Duplicate Check
+        </button>
+    </div>
+
+    <div class="search-section mb-4">
+        <input type="text" class="form-control search-input" placeholder="Search by name or MRN" @bind="searchTerm" @oninput="OnSearchTermChanged" />
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Checking for duplicate patients...</p>
+        </div>
+    }
+    else if (filteredDuplicateGroups.Any())
+    {
+        <div class="duplicate-groups">
+            @foreach (var group in filteredDuplicateGroups)
+            {
+                <div class="duplicate-group-card mb-4">
+                    <div class="group-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                            Potential Duplicates - @group.MatchReason
+                        </h5>
+                        <small class="text-muted">@group.Patients.Count patients found</small>
+                    </div>
+                    
+                    <div class="patients-comparison">
+                        <div class="row">
+                            @foreach (var patient in group.Patients)
+                            {
+                                <div class="col-md-6">
+                                    <div class="patient-card @(group.PrimaryPatientId == patient.Id ? "primary" : "")">
+                                        @if (group.PrimaryPatientId == patient.Id)
+                                        {
+                                            <div class="primary-badge">
+                                                <i class="bi bi-star-fill"></i> Primary
+                                            </div>
+                                        }
+                                        
+                                        <div class="patient-info">
+                                            <div class="patient-name">@patient.FirstName @patient.LastName</div>
+                                            <div class="patient-details">
+                                                <div><strong>MRN:</strong> @patient.MRN</div>
+                                                <div><strong>DOB:</strong> @(patient.DateOfBirth != DateTime.MinValue ? patient.DateOfBirth.ToString("MM/dd/yyyy") : "N/A")</div>
+                                                <div><strong>Gender:</strong> @patient.Gender</div>
+                                                <div><strong>Created:</strong> @patient.CreatedAt.ToString("MM/dd/yyyy")</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="patient-actions">
+                                            <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => ViewPatient(patient.Id)">
+                                                View Details
+                                            </button>
+                                            @if (group.PrimaryPatientId != patient.Id)
+                                            {
+                                                <button class="btn btn-sm btn-outline-warning me-2" @onclick="() => SetAsPrimary(group.GroupId, patient.Id)">
+                                                    Set as Primary
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    
+                    <div class="group-actions mt-3">
+                        <button class="btn btn-success me-2" @onclick="() => MergePatients(group.GroupId)">
+                            <i class="bi bi-arrows-collapse"></i> Merge Patients
+                        </button>
+                        <button class="btn btn-secondary me-2" @onclick="() => MarkAsNotDuplicate(group.GroupId)">
+                            <i class="bi bi-x-circle"></i> Not Duplicates
+                        </button>
+                        <button class="btn btn-outline-danger" @onclick="() => DeleteDuplicate(group.GroupId)">
+                            <i class="bi bi-trash"></i> Delete Duplicate
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-check-circle display-4 text-success"></i>
+            <h4 class="mt-3">No Duplicate Patients Found</h4>
+            <p>All patient records appear to be unique.</p>
+            <button class="btn btn-primary" @onclick="RunDuplicateCheck">
+                Run Check Again
+            </button>
+        </div>
+    }
+</div>
+
+<style>
+    .duplicate-patients-container {
+        padding: 20px;
+    }
+
+    .search-input {
+        max-width: 400px;
+        border-bottom: 2px solid #007bff;
+        border-radius: 0;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+        box-shadow: none;
+        padding-left: 0;
+    }
+
+    .search-input:focus {
+        border-bottom-color: #0056b3;
+        box-shadow: none;
+    }
+
+    .duplicate-group-card {
+        border: 2px solid #ffc107;
+        border-radius: 8px;
+        padding: 20px;
+        background-color: #fffbf0;
+    }
+
+    .group-header {
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .patients-comparison .patient-card {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 15px;
+        position: relative;
+        background-color: white;
+    }
+
+    .patients-comparison .patient-card.primary {
+        border-color: #28a745;
+        background-color: #f8fff9;
+    }
+
+    .primary-badge {
+        position: absolute;
+        top: -8px;
+        right: 10px;
+        background-color: #28a745;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .patient-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 10px;
+    }
+
+    .patient-details {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 15px;
+    }
+
+    .patient-details div {
+        margin-bottom: 4px;
+    }
+
+    .patient-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .group-actions {
+        padding-top: 15px;
+        border-top: 1px solid #dee2e6;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .btn-sm {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+</style>
+
+@code {
+    private List<DuplicateGroup> duplicateGroups = new();
+    private List<DuplicateGroup> filteredDuplicateGroups = new();
+    private string searchTerm = "";
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDuplicatePatients();
+    }
+
+    private async Task LoadDuplicatePatients()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            // Load duplicate patients from service
+            var duplicatePatients = await PatientService.GetDuplicatesAsync();
+            
+            // Group patients that were returned as duplicates
+            duplicateGroups = new List<DuplicateGroup>();
+            
+            if (duplicatePatients.Any())
+            {
+                // Group by first name, last name, and DOB combination
+                var nameGroups = duplicatePatients
+                    .Where(p => p.DateOfBirth.HasValue)
+                    .GroupBy(p => $"{p.FirstName?.ToLower()}-{p.LastName?.ToLower()}-{p.DateOfBirth?.ToString("yyyy-MM-dd")}")
+                    .Where(g => g.Count() > 1)
+                    .ToList();
+
+                int groupId = 1;
+                foreach (var nameGroup in nameGroups)
+                {
+                    var group = new DuplicateGroup
+                    {
+                        GroupId = groupId++,
+                        MatchReason = "Same Name & DOB",
+                        PrimaryPatientId = nameGroup.OrderBy(p => p.CreatedAtUtc).First().Id,
+                        Patients = nameGroup.Select(p => new PatientInfo
+                        {
+                            Id = p.Id,
+                            FirstName = p.FirstName,
+                            LastName = p.LastName,
+                            MRN = p.MRN ?? "",
+                            DateOfBirth = p.DateOfBirth ?? DateTime.MinValue,
+                            Gender = p.Gender ?? "",
+                            CreatedAt = p.CreatedAtUtc
+                        }).ToList()
+                    };
+                    duplicateGroups.Add(group);
+                }
+
+                // Group by email
+                var emailGroups = duplicatePatients
+                    .Where(p => !string.IsNullOrEmpty(p.Email))
+                    .GroupBy(p => p.Email!.ToLower())
+                    .Where(g => g.Count() > 1)
+                    .ToList();
+
+                foreach (var emailGroup in emailGroups)
+                {
+                    // Check if already in a group
+                    var existingGroup = duplicateGroups.FirstOrDefault(g => g.Patients.Any(p => emailGroup.Any(ep => ep.Id == p.Id)));
+                    if (existingGroup == null)
+                    {
+                        var group = new DuplicateGroup
+                        {
+                            GroupId = groupId++,
+                            MatchReason = "Same Email",
+                            PrimaryPatientId = emailGroup.OrderBy(p => p.CreatedAtUtc).First().Id,
+                            Patients = emailGroup.Select(p => new PatientInfo
+                            {
+                                Id = p.Id,
+                                FirstName = p.FirstName,
+                                LastName = p.LastName,
+                                MRN = p.MRN ?? "",
+                                DateOfBirth = p.DateOfBirth ?? DateTime.MinValue,
+                                Gender = p.Gender ?? "",
+                                CreatedAt = p.CreatedAtUtc
+                            }).ToList()
+                        };
+                        duplicateGroups.Add(group);
+                    }
+                }
+            }
+
+            FilterDuplicateGroups();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading duplicate patients: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RunDuplicateCheck()
+    {
+        await LoadDuplicatePatients();
+    }
+
+    private void OnSearchTermChanged(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? "";
+        FilterDuplicateGroups();
+    }
+
+    private void FilterDuplicateGroups()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredDuplicateGroups = duplicateGroups.ToList();
+        }
+        else
+        {
+            filteredDuplicateGroups = duplicateGroups
+                .Where(g => g.Patients.Any(p => 
+                    p.FirstName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    p.LastName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    p.MRN.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+        }
+        StateHasChanged();
+    }
+
+    private void ViewPatient(int patientId)
+    {
+        Navigation.NavigateTo($"/patients/{patientId}");
+    }
+
+    private async Task SetAsPrimary(int groupId, int patientId)
+    {
+        var group = duplicateGroups.FirstOrDefault(g => g.GroupId == groupId);
+        if (group != null)
+        {
+            group.PrimaryPatientId = patientId;
+            StateHasChanged();
+        }
+    }
+
+    private async Task MergePatients(int groupId)
+    {
+        try
+        {
+            // In real implementation, call API to merge patients
+            var group = duplicateGroups.FirstOrDefault(g => g.GroupId == groupId);
+            if (group != null)
+            {
+                duplicateGroups.Remove(group);
+                FilterDuplicateGroups();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error merging patients: {ex.Message}");
+        }
+    }
+
+    private async Task MarkAsNotDuplicate(int groupId)
+    {
+        try
+        {
+            // In real implementation, call API to mark as not duplicate
+            var group = duplicateGroups.FirstOrDefault(g => g.GroupId == groupId);
+            if (group != null)
+            {
+                duplicateGroups.Remove(group);
+                FilterDuplicateGroups();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error marking as not duplicate: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteDuplicate(int groupId)
+    {
+        try
+        {
+            // In real implementation, call API to delete duplicate
+            var group = duplicateGroups.FirstOrDefault(g => g.GroupId == groupId);
+            if (group != null)
+            {
+                duplicateGroups.Remove(group);
+                FilterDuplicateGroups();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting duplicate: {ex.Message}");
+        }
+    }
+
+    public class DuplicateGroup
+    {
+        public int GroupId { get; set; }
+        public string MatchReason { get; set; } = string.Empty;
+        public int PrimaryPatientId { get; set; }
+        public List<PatientInfo> Patients { get; set; } = new();
+    }
+
+    public class PatientInfo
+    {
+        public int Id { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string MRN { get; set; } = string.Empty;
+        public DateTime DateOfBirth { get; set; }
+        public string Gender { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+    }
+}

@@ -6,8 +6,8 @@ namespace CareFusion.WebApi.Services.Interfaces;
 public interface IPatientService
 {
     Task<IEnumerable<PatientDto>> GetPatientsAsync();
-    Task<PatientDto?> GetPatientByIdAsync(Guid id);
+    Task<PatientDto?> GetPatientByIdAsync(int id);
     Task<PatientDto> AddPatientAsync(PatientDto dto);
     Task<PatientDto> UpdatePatientAsync(PatientDto dto);
-    Task<bool> DeletePatientAsync(Guid id);
+    Task<bool> DeletePatientAsync(int id);
 }

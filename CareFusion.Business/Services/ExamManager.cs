@@ -22,7 +22,7 @@ public class ExamManager
         _validator = validator;
     }
 
-    public virtual async Task<ApiResponse<ExamDto>> GetByIdAsync(Guid id, CancellationToken ct = default)
+    public virtual async Task<ApiResponse<ExamDto>> GetByIdAsync(int id, CancellationToken ct = default)
     {
         var entity = await _uow.Exams.GetByIdAsync(id, ct);
         if (entity is null)
@@ -32,7 +32,7 @@ public class ExamManager
     }
 
     public virtual async Task<ApiResponse<PagedResult<ExamDto>>> ListByPatientAsync(
-        Guid patientId, int page, int pageSize, CancellationToken ct = default)
+        int patientId, int page, int pageSize, CancellationToken ct = default)
     {
         var (items, total) = await _uow.Exams.ListByPatientAsync(patientId, (page - 1) * pageSize, pageSize, ct);
         var result = new PagedResult<ExamDto>
@@ -75,7 +75,7 @@ public class ExamManager
         return ApiResponse<ExamDto>.Ok(_mapper.Map<ExamDto>(entity), "Exam updated successfully");
     }
 
-    public async Task<ApiResponse<List<ExamDto>>> GetByPatientIdAsync(Guid patientId, CancellationToken ct = default)
+    public async Task<ApiResponse<List<ExamDto>>> GetByPatientIdAsync(int patientId, CancellationToken ct = default)
     {
         var (exams, _) = await _uow.Exams.ListByPatientAsync(patientId, 0, int.MaxValue, ct);
         return ApiResponse<List<ExamDto>>.Ok(exams.Select(_mapper.Map<ExamDto>).ToList());
@@ -86,7 +86,7 @@ public class ExamManager
         return await CreateAsync(dto, null, ct);
     }
 
-    public async Task<ApiResponse<bool>> DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<ApiResponse<bool>> DeleteAsync(int id, CancellationToken ct = default)
     {
         var entity = await _uow.Exams.GetByIdAsync(id, ct);
         if (entity is null)

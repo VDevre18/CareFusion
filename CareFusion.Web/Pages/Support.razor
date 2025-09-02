@@ -1,0 +1,65 @@
+@page "/support"
+@attribute [Authorize]
+@inject NavigationManager Navigation
+
+<PageTitle>Support - CareFusion</PageTitle>
+
+<div class="support-modal">
+    <div class="form-overlay">
+        <div class="form-dialog">
+            <div class="form-header">
+                <button class="close-btn" @onclick="GoBack">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            
+            <div class="form-content">
+                <div class="support-section">
+                    <h2>Support Menu</h2>
+                    
+                    <div class="support-message">
+                        <p>Please contact your local support provider.</p>
+                    </div>
+                    
+                    <div class="support-buttons">
+                        <button class="support-btn support-btn-anydesk" @onclick="OpenAnydesk">
+                            Open Anydesk
+                        </button>
+                        
+                        <button class="support-btn support-btn-diagnostics" @onclick="RunDiagnostics">
+                            System Diagnostics
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Opens Anydesk application
+    /// </summary>
+    private void OpenAnydesk()
+    {
+        // Placeholder for Anydesk functionality
+        Console.WriteLine("Opening Anydesk...");
+    }
+
+    /// <summary>
+    /// Runs system diagnostics
+    /// </summary>
+    private void RunDiagnostics()
+    {
+        // Placeholder for diagnostics functionality
+        Console.WriteLine("Running system diagnostics...");
+    }
+
+    /// <summary>
+    /// Navigates back to the main dashboard
+    /// </summary>
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

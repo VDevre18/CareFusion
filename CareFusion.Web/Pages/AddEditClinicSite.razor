@@ -1,0 +1,156 @@
+@page "/manage-clinic-sites/add"
+@page "/manage-clinic-sites/edit/{id:int}"
+@using CareFusion.Model.Dtos
+@using CareFusion.Web.Services.Interfaces
+@attribute [Authorize]
+@inject IClinicSiteService ClinicSiteService
+@inject NavigationManager Navigation
+
+<PageTitle>@(IsEditMode ? "Edit Clinic Site" : "Create New Site") - CareFusion</PageTitle>
+
+<div class="clinic-site-form-modal">
+    <div class="form-overlay">
+        <div class="form-dialog">
+            <div class="form-header">
+                <button class="close-btn" @onclick="GoBack">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            
+            <div class="form-content">
+                <EditForm Model="clinicSite" OnValidSubmit="HandleValidSubmit">
+                    <div class="form-section">
+                        <h2>Site Details</h2>
+                        
+                        <div class="form-group">
+                            <label>Site Name</label>
+                            <InputText class="form-input" @bind-Value="clinicSite.Name" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Site Code</label>
+                            <InputText class="form-input" @bind-Value="clinicSite.Code" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Address</label>
+                            <InputText class="form-input" @bind-Value="clinicSite.Address" />
+                        </div>
+                        
+                        <button type="submit" class="create-btn" disabled="@isLoading">
+                            @(IsEditMode ? "Update" : "Create")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    
+    private ClinicSiteDto clinicSite = new() { IsActive = true };
+    private bool isLoading = false;
+
+    private bool IsEditMode => Id.HasValue && Id > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IsEditMode)
+        {
+            await LoadClinicSite();
+        }
+    }
+
+    /// <summary>
+    /// Loads the clinic site for editing
+    /// </summary>
+    private async Task LoadClinicSite()
+    {
+        try
+        {
+            if (Id.HasValue)
+            {
+                var result = await ClinicSiteService.GetAsync(Id.Value);
+                if (result != null)
+                {
+                    clinicSite = result;
+                }
+                else
+                {
+                    Navigation.NavigateTo("/manage-clinic-sites");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading clinic site: {ex.Message}");
+            Navigation.NavigateTo("/manage-clinic-sites");
+        }
+    }
+
+    /// <summary>
+    /// Validates the form
+    /// </summary>
+    private bool IsFormValid()
+    {
+        if (string.IsNullOrWhiteSpace(clinicSite.Name))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Handles form submission
+    /// </summary>
+    private async Task HandleValidSubmit()
+    {
+        if (!IsFormValid())
+        {
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            ClinicSiteDto? result;
+            
+            if (IsEditMode)
+            {
+                result = await ClinicSiteService.UpdateAsync(clinicSite);
+            }
+            else
+            {
+                result = await ClinicSiteService.CreateAsync(clinicSite);
+            }
+
+            if (result != null)
+            {
+                Navigation.NavigateTo("/manage-clinic-sites");
+            }
+            else
+            {
+                Console.WriteLine($"Error {(IsEditMode ? "updating" : "creating")} clinic site");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error submitting form: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Navigates back to the clinic sites list
+    /// </summary>
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/manage-clinic-sites");
+    }
+}

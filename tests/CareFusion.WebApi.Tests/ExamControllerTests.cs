@@ -47,8 +47,8 @@ public class ExamsControllerTests
     public async Task Get_WithValidId_ShouldReturnOkResult()
     {
         // Arrange
-        var examId = Guid.NewGuid();
-        var patientId = Guid.NewGuid();
+        var examId = 1;
+        var patientId = 2;
         var expectedResponse = ApiResponse<ExamDto>.Ok(new ExamDto
         {
             Id = examId,
@@ -79,7 +79,7 @@ public class ExamsControllerTests
     public async Task Get_WithInvalidId_ShouldReturnNotFoundResponse()
     {
         // Arrange
-        var examId = Guid.NewGuid();
+        var examId = 3;
         var expectedResponse = ApiResponse<ExamDto>.Fail("Exam not found");
         
         _mockExamManager
@@ -100,7 +100,7 @@ public class ExamsControllerTests
     public async Task ListByPatient_WithValidPatientId_ShouldReturnPagedResults()
     {
         // Arrange
-        var patientId = Guid.NewGuid();
+        var patientId = 4;
         const int page = 1;
         const int pageSize = 20;
         
@@ -108,7 +108,7 @@ public class ExamsControllerTests
         {
             new() 
             { 
-                Id = Guid.NewGuid(), 
+                Id = 5, 
                 PatientId = patientId, 
                 Modality = "CT", 
                 StudyType = "Chest CT",
@@ -117,7 +117,7 @@ public class ExamsControllerTests
             },
             new() 
             { 
-                Id = Guid.NewGuid(), 
+                Id = 6, 
                 PatientId = patientId, 
                 Modality = "MRI", 
                 StudyType = "Brain MRI",
@@ -156,7 +156,7 @@ public class ExamsControllerTests
     public async Task ListByPatient_WithNonExistentPatient_ShouldReturnEmptyResults()
     {
         // Arrange
-        var patientId = Guid.NewGuid();
+        var patientId = 7;
         const int page = 1;
         const int pageSize = 20;
         
@@ -189,7 +189,7 @@ public class ExamsControllerTests
     public async Task Create_WithValidDto_ShouldReturnCreatedExam()
     {
         // Arrange
-        var patientId = Guid.NewGuid();
+        var patientId = 8;
         var examDto = new ExamDto
         {
             PatientId = patientId,
@@ -199,7 +199,7 @@ public class ExamsControllerTests
             Status = "Scheduled"
         };
         
-        var createdExamDto = examDto with { Id = Guid.NewGuid() };
+        var createdExamDto = examDto with { Id = 9 };
         var expectedResponse = ApiResponse<ExamDto>.Ok(createdExamDto);
         
         _mockExamManager
@@ -213,7 +213,7 @@ public class ExamsControllerTests
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<ApiResponse<ExamDto>>(okResult.Value);
         Assert.True(response.Success);
-        Assert.NotEqual(Guid.Empty, response.Data!.Id);
+        Assert.NotEqual(0, response.Data!.Id);
         Assert.Equal("MRI", response.Data.Modality);
         Assert.Equal("Lumbar Spine MRI", response.Data.StudyType);
     }
@@ -224,7 +224,7 @@ public class ExamsControllerTests
         // Arrange
         var invalidExamDto = new ExamDto
         {
-            PatientId = Guid.Empty, // Invalid - empty patient ID
+            PatientId = 0, // Invalid - empty patient ID
             Modality = "CT",
             StudyType = "Invalid Study",
             Status = "Scheduled"
@@ -250,8 +250,8 @@ public class ExamsControllerTests
     public async Task Update_WithValidDto_ShouldReturnUpdatedExam()
     {
         // Arrange
-        var examId = Guid.NewGuid();
-        var patientId = Guid.NewGuid();
+        var examId = 10;
+        var patientId = 11;
         var examDto = new ExamDto
         {
             Id = examId,
@@ -284,8 +284,8 @@ public class ExamsControllerTests
     public async Task Update_WithNonExistentId_ShouldReturnNotFound()
     {
         // Arrange
-        var examId = Guid.NewGuid();
-        var patientId = Guid.NewGuid();
+        var examId = 12;
+        var patientId = 13;
         var examDto = new ExamDto
         {
             Id = examId,
@@ -315,9 +315,9 @@ public class ExamsControllerTests
     public async Task Update_ShouldOverrideIdFromRoute()
     {
         // Arrange
-        var routeId = Guid.NewGuid();
-        var dtoId = Guid.NewGuid(); // Different ID in DTO
-        var patientId = Guid.NewGuid();
+        var routeId = 14;
+        var dtoId = 15; // Different ID in DTO
+        var patientId = 16;
         
         var examDto = new ExamDto
         {

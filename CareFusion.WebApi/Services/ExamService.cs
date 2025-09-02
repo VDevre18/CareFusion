@@ -17,13 +17,13 @@ public class ExamService : IExamService
         _mapper = mapper;
     }
 
-    public async Task<IEnumerable<ExamDto>> GetExamsByPatientIdAsync(Guid patientId)
+    public async Task<IEnumerable<ExamDto>> GetExamsByPatientIdAsync(int patientId)
     {
         var response = await _examManager.GetByPatientIdAsync(patientId);
         return response.Success ? _mapper.Map<IEnumerable<ExamDto>>(response.Data) : [];
     }
 
-    public async Task<ExamDto?> GetExamByIdAsync(Guid id)
+    public async Task<ExamDto?> GetExamByIdAsync(int id)
     {
         var response = await _examManager.GetByIdAsync(id);
         return response.Success ? _mapper.Map<ExamDto>(response.Data) : null;
@@ -43,7 +43,7 @@ public class ExamService : IExamService
         return _mapper.Map<ExamDto>(response.Data);
     }
 
-    public async Task<bool> DeleteExamAsync(Guid id)
+    public async Task<bool> DeleteExamAsync(int id)
     {
         var response = await _examManager.DeleteAsync(id);
         return response.Success;

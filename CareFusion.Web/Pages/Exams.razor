@@ -14,6 +14,6 @@
         // For brevity, leave as empty or you can implement a general API endpoint later.
     }
 
-    void View(Guid id) => Nav.NavigateTo($"/exams/{id}");
+    void View(int id) => Nav.NavigateTo($"/exams/{id}");
     [Inject] NavigationManager Nav { get; set; } = default!;
 }

@@ -15,8 +15,8 @@ public class StorageController : ControllerBase
         _storageService = storageService;
     }
 
-    [HttpPost("upload/{examId:guid}")]
-    public async Task<IActionResult> Upload(Guid examId, IFormFile file, CancellationToken ct)
+    [HttpPost("upload/{examId:int}")]
+    public async Task<IActionResult> Upload(int examId, IFormFile file, CancellationToken ct)
     {
         if (file == null || file.Length == 0)
             return BadRequest("File is required");
@@ -27,8 +27,8 @@ public class StorageController : ControllerBase
         return Ok(new { Url = url });
     }
 
-    [HttpGet("download/{examId:guid}/{fileName}")]
-    public async Task<IActionResult> Download(Guid examId, string fileName, CancellationToken ct)
+    [HttpGet("download/{examId:int}/{fileName}")]
+    public async Task<IActionResult> Download(int examId, string fileName, CancellationToken ct)
     {
         var stream = await _storageService.DownloadExamAsync(examId, fileName, ct);
         return File(stream, "application/octet-stream", fileName);

@@ -87,9 +87,9 @@ else
         await Search();
     }
 
-    private void View(Guid id) => NavigationManager.NavigateTo($"/patients/{id}");
+    private void View(int id) => NavigationManager.NavigateTo($"/patients/{id}");
 
-    private void Edit(Guid id) => NavigationManager.NavigateTo($"/patients/edit/{id}");
+    private void Edit(int id) => NavigationManager.NavigateTo($"/patients/edit/{id}");
 
     private void Add() => NavigationManager.NavigateTo("/patients/add");
 }

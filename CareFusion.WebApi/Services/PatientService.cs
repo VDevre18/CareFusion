@@ -23,7 +23,7 @@ public class PatientService : IPatientService
         return response.Success ? _mapper.Map<IEnumerable<PatientDto>>(response.Data) : [];
     }
 
-    public async Task<PatientDto?> GetPatientByIdAsync(Guid id)
+    public async Task<PatientDto?> GetPatientByIdAsync(int id)
     {
         var response = await _patientManager.GetByIdAsync(id);
         return response.Success ? _mapper.Map<PatientDto>(response.Data) : null;
@@ -43,7 +43,7 @@ public class PatientService : IPatientService
         return _mapper.Map<PatientDto>(response.Data);
     }
 
-    public async Task<bool> DeletePatientAsync(Guid id)
+    public async Task<bool> DeletePatientAsync(int id)
     {
         var response = await _patientManager.DeleteAsync(id);
         return response.Success;

@@ -1,0 +1,274 @@
+@page "/manage-users/add"
+@page "/manage-users/edit/{id:int}"
+@using CareFusion.Model.Dtos
+@using CareFusion.Web.Services.Interfaces
+@attribute [Authorize]
+@inject IUserService UserService
+@inject IClinicSiteService ClinicSiteService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@(IsEditMode ? "Edit User" : "Create User") - CareFusion</PageTitle>
+
+<div class="user-form-modal">
+    <div class="form-overlay">
+        <div class="form-dialog">
+            <div class="form-header">
+                <button class="close-btn" @onclick="GoBack">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            
+            <div class="form-content">
+                <EditForm Model="user" OnValidSubmit="HandleValidSubmit">
+                    <div class="form-section">
+                        <h2>Account Details</h2>
+                        
+                        <div class="form-group">
+                            <label>Username</label>
+                            <InputText class="form-input" @bind-Value="user.Username" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>First Name</label>
+                            <InputText class="form-input" @bind-Value="user.FirstName" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Last Name</label>
+                            <InputText class="form-input" @bind-Value="user.LastName" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Email</label>
+                            <InputText class="form-input" @bind-Value="user.Email" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Role</label>
+                            <select class="form-input" @bind="user.Role">
+                                <option value="">Select Role</option>
+                                <option value="Admin">Admin</option>
+                                <option value="Doctor">Doctor</option>
+                                <option value="Nurse">Nurse/Staff</option>
+                                <option value="Technician">Technician</option>
+                            </select>
+                        </div>
+                        
+                        @if (!IsEditMode)
+                        {
+                            <div class="form-group">
+                                <label>Password</label>
+                                <InputText class="form-input password-input" @bind-Value="user.Password" type="password" placeholder="Enter Password" />
+                            </div>
+                        }
+                        
+                        <button type="submit" class="create-btn" disabled="@isLoading">
+                            Create
+                        </button>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h2>Clinical Site Access</h2>
+                        
+                        <div class="form-group">
+                            <label>Primary Clinic Site</label>
+                            <select class="form-input" @bind="user.DefaultClinicSiteId">
+                                <option value="">Select Primary Site</option>
+                                @foreach (var site in availableClinicSites)
+                                {
+                                    <option value="@site.Id">@site.Name</option>
+                                }
+                            </select>
+                        </div>
+                        
+                        <div class="permission-group">
+                            <label>Access to Additional Sites:</label>
+                            @foreach (var site in availableClinicSites)
+                            {
+                                <div class="permission-item">
+                                    <span>@site.Name</span>
+                                    <div class="permission-toggle">
+                                        <input type="checkbox" @bind="site.IsSelected" />
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    
+    private UserDto user = new() { IsActive = true };
+    private string confirmPassword = string.Empty;
+    private bool isLoading = false;
+    private List<ClinicSiteItem> availableClinicSites = new();
+
+    private bool IsEditMode => Id.HasValue && Id > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadClinicSites();
+        if (IsEditMode)
+        {
+            await LoadUser();
+        }
+    }
+
+    private async Task LoadClinicSites()
+    {
+        try
+        {
+            var result = await ClinicSiteService.SearchAsync("", 1, 100);
+            availableClinicSites = result.Items.Select(s => new ClinicSiteItem
+            {
+                Id = s.Id,
+                Name = s.Name,
+                IsSelected = false
+            }).ToList();
+
+            // If no sites from service, use sample data
+            if (!availableClinicSites.Any())
+            {
+                availableClinicSites = new List<ClinicSiteItem>
+                {
+                    new() { Id = 1, Name = "Main Medical Center", IsSelected = false },
+                    new() { Id = 2, Name = "Downtown Clinic", IsSelected = false },
+                    new() { Id = 3, Name = "Kodiak Cres", IsSelected = false },
+                    new() { Id = 4, Name = "North Campus", IsSelected = false }
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading clinic sites: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Loads the user for editing
+    /// </summary>
+    private async Task LoadUser()
+    {
+        try
+        {
+            if (Id.HasValue)
+            {
+                var result = await UserService.GetAsync(Id.Value);
+                if (result != null)
+                {
+                    user = result;
+                    // Don't populate password for editing
+                    user.Password = string.Empty;
+                }
+                else
+                {
+                    // User not found, redirect back
+                    Navigation.NavigateTo("/manage-users");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading user: {ex.Message}");
+            Navigation.NavigateTo("/manage-users");
+        }
+    }
+
+    /// <summary>
+    /// Validates the form
+    /// </summary>
+    private bool IsFormValid()
+    {
+        if (string.IsNullOrWhiteSpace(user.FirstName) ||
+            string.IsNullOrWhiteSpace(user.LastName) ||
+            string.IsNullOrWhiteSpace(user.Username) ||
+            string.IsNullOrWhiteSpace(user.Email))
+        {
+            return false;
+        }
+
+        // For new users, password is required
+        if (!IsEditMode)
+        {
+            if (string.IsNullOrWhiteSpace(user.Password))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Handles form submission
+    /// </summary>
+    private async Task HandleValidSubmit()
+    {
+        if (!IsFormValid())
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Please fill in all required fields");
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            UserDto? result;
+            
+            if (IsEditMode)
+            {
+                // For updates, only send password if it's been changed
+                if (string.IsNullOrWhiteSpace(user.Password))
+                {
+                    user.Password = null;
+                }
+                result = await UserService.UpdateAsync(user);
+            }
+            else
+            {
+                result = await UserService.CreateAsync(user);
+            }
+
+            if (result != null)
+            {
+                // Success - navigate back to users list
+                Navigation.NavigateTo("/manage-users");
+            }
+            else
+            {
+                // Handle error - could show message to user
+                await JSRuntime.InvokeVoidAsync("alert", $"Error {(IsEditMode ? "updating" : "creating")} user. Please try again.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error submitting form: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error occurred: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Navigates back to the users list
+    /// </summary>
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/manage-users");
+    }
+
+    public class ClinicSiteItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public bool IsSelected { get; set; }
+    }
+}

@@ -16,7 +16,7 @@ public class StorageService : IStorageService
         _storageHelper = new AzureStorageHelper(connectionString!);
     }
 
-    public async Task<string> UploadExamAsync(Guid examId, Stream file, string fileName, string contentType, CancellationToken ct = default)
+    public async Task<string> UploadExamAsync(int examId, Stream file, string fileName, string contentType, CancellationToken ct = default)
     {
         var containerName = "exams";
         var blobName = $"{examId}/{fileName}";
@@ -24,7 +24,7 @@ public class StorageService : IStorageService
         return await _storageHelper.UploadAsync(containerName, blobName, file, contentType, ct);
     }
 
-    public async Task<Stream> DownloadExamAsync(Guid examId, string fileName, CancellationToken ct = default)
+    public async Task<Stream> DownloadExamAsync(int examId, string fileName, CancellationToken ct = default)
     {
         var containerName = "exams";
         var blobName = $"{examId}/{fileName}";

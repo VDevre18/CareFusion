@@ -1,0 +1,340 @@
+@page "/image-cloud"
+@attribute [Authorize]
+@using CareFusion.Model.Dtos
+@using CareFusion.Web.Services.Interfaces
+@inject NavigationManager Navigation
+@inject IExamImageService ExamImageService
+@inject IPatientService PatientService
+
+<PageTitle>Image Cloud - CareFusion</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Image Cloud</h2>
+    <div>
+        <button class="btn btn-outline-secondary me-2" @onclick="RefreshImages">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+        <button class="btn btn-primary" @onclick="UploadImage">
+            <i class="bi bi-cloud-upload"></i> Upload Images
+        </button>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" placeholder="Search images..." @bind="searchTerm" @oninput="OnSearchTermChanged" />
+        </div>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" @bind="selectedModality" @bind:after="OnModalityChanged">
+            <option value="">All Modalities</option>
+            <option value="CT">CT</option>
+            <option value="MRI">MRI</option>
+            <option value="X-Ray">X-Ray</option>
+            <option value="Ultrasound">Ultrasound</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" @bind="selectedPatient" @bind:after="OnPatientChanged">
+            <option value="">All Patients</option>
+            @foreach (var patient in patients)
+            {
+                <option value="@patient.Id">@patient.FirstName @patient.LastName</option>
+            }
+        </select>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+        <button type="button" class="btn btn-sm btn-outline-danger ms-2" @onclick="LoadData">
+            <i class="bi bi-arrow-clockwise"></i> Retry
+        </button>
+    </div>
+}
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading images from database...</p>
+    </div>
+}
+
+<div class="row">
+    @if (filteredImages.Any())
+    {
+        @foreach (var image in filteredImages)
+        {
+            <div class="col-md-4 col-lg-3 mb-4">
+                <div class="card image-card">
+                    <div class="image-container">
+                        <img src="@GetImageThumbnail(image)" class="card-img-top" alt="@image.FileName" @onclick="() => ViewImage(image.Id)" />
+                        <div class="image-overlay">
+                            <button class="btn btn-sm btn-light" @onclick="() => ViewImage(image.Id)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-light" @onclick="() => DownloadImage(image.Id)">
+                                <i class="bi bi-download"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteImage(image.Id)">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">@image.PatientName</h6>
+                        <p class="card-text small text-muted mb-1">@image.FileName</p>
+                        <p class="card-text small">
+                            <span class="badge bg-secondary">@ExtractModality(image.FileName)</span>
+                            <span class="text-muted ms-2">@(image.ExamDate?.ToString("MMM dd, yyyy") ?? image.UploadDate.ToString("MMM dd, yyyy"))</span>
+                        </p>
+                        <small class="text-muted">@image.FileSizeFormatted</small>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="bi bi-images display-1 text-muted"></i>
+                <h4>No Images Found</h4>
+                <p class="text-muted">@(string.IsNullOrEmpty(searchTerm) ? "No medical images have been uploaded yet." : $"No images match your search criteria.")</p>
+                <button class="btn btn-primary" @onclick="UploadImage">
+                    <i class="bi bi-cloud-upload"></i> Upload First Image
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+.image-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.image-card:hover {
+    transform: translateY(-5px);
+}
+
+.image-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.image-container img {
+    height: 200px;
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.image-container:hover img {
+    transform: scale(1.05);
+}
+
+.image-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.image-container:hover .image-overlay {
+    opacity: 1;
+}
+</style>
+
+@code {
+    private List<ExamImageDto> images = new();
+    private List<ExamImageDto> filteredImages = new();
+    private List<PatientDto> patients = new();
+    private string searchTerm = string.Empty;
+    private string selectedModality = string.Empty;
+    private string selectedPatient = string.Empty;
+    private bool isLoading = false;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            // Load patients for the dropdown
+            var patientsResult = await PatientService.SearchAsync("", 1, 1000);
+            patients = patientsResult.Items.ToList();
+
+            // Load images from the database
+            var (imageItems, total) = await ExamImageService.GetImagesAsync();
+            images = imageItems.ToList();
+            
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading data: {ex.Message}";
+            Console.WriteLine(errorMessage);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        filteredImages = images.Where(img =>
+            (string.IsNullOrEmpty(searchTerm) || 
+             (img.PatientName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+             (img.FileName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)) &&
+            (string.IsNullOrEmpty(selectedModality) || ExtractModality(img.FileName).Equals(selectedModality, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrEmpty(selectedPatient) || IsImageForPatient(img, selectedPatient))
+        ).ToList();
+        
+        StateHasChanged();
+    }
+
+    private bool IsImageForPatient(ExamImageDto image, string patientIdStr)
+    {
+        if (int.TryParse(patientIdStr, out var patientId))
+        {
+            // In real implementation, you might need to get patient ID from exam
+            return patients.Any(p => p.Id == patientId && 
+                image.PatientName?.Contains($"{p.FirstName} {p.LastName}", StringComparison.OrdinalIgnoreCase) == true);
+        }
+        return false;
+    }
+
+    private string ExtractModality(string fileName)
+    {
+        // Extract modality from filename - in real implementation, this should come from exam data
+        if (fileName.ToLower().Contains("ct")) return "CT";
+        if (fileName.ToLower().Contains("mri")) return "MRI";
+        if (fileName.ToLower().Contains("xray") || fileName.ToLower().Contains("x-ray")) return "X-Ray";
+        if (fileName.ToLower().Contains("ultrasound") || fileName.ToLower().Contains("us")) return "Ultrasound";
+        return "Other";
+    }
+
+    private string GetImageThumbnail(ExamImageDto image)
+    {
+        // Try to get actual thumbnail from API, fallback to placeholder
+        if (!string.IsNullOrEmpty(image.ThumbnailPath))
+        {
+            return $"/api/examimages/{image.Id}/thumbnail";
+        }
+        
+        // Fallback to SVG placeholder
+        var modality = ExtractModality(image.FileName);
+        return $"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'><rect width='100%' height='100%' fill='%23f8f9fa'/><text x='50%' y='50%' text-anchor='middle' dy='.35em' fill='%236c757d'>{Uri.EscapeDataString(modality)}</text></svg>";
+    }
+
+    private void ViewImage(int imageId)
+    {
+        Navigation.NavigateTo($"/images/{imageId}");
+    }
+
+    private async Task DownloadImage(int imageId)
+    {
+        try
+        {
+            var imageData = await ExamImageService.GetImageDataAsync(imageId);
+            if (imageData.HasValue)
+            {
+                // In a real implementation, you'd trigger a browser download
+                // For now, just log success
+                Console.WriteLine($"Successfully retrieved image data for image {imageId}");
+            }
+            else
+            {
+                Console.WriteLine($"Could not retrieve image data for image {imageId}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error downloading image: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteImage(int imageId)
+    {
+        try
+        {
+            if (await ConfirmDelete())
+            {
+                var success = await ExamImageService.DeleteImageAsync(imageId);
+                if (success)
+                {
+                    // Remove from local list
+                    images.RemoveAll(img => img.Id == imageId);
+                    ApplyFilters();
+                    Console.WriteLine($"Image {imageId} deleted successfully");
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to delete image {imageId}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting image: {ex.Message}");
+        }
+    }
+
+    private async Task<bool> ConfirmDelete()
+    {
+        // In real implementation, show a proper confirmation dialog
+        // For now, just return true to allow deletion
+        return true;
+    }
+
+    private async Task RefreshImages()
+    {
+        await LoadData();
+    }
+
+    private void UploadImage()
+    {
+        Navigation.NavigateTo("/upload");
+    }
+
+    private async Task OnSearchTermChanged()
+    {
+        ApplyFilters();
+    }
+
+    private async Task OnModalityChanged()
+    {
+        ApplyFilters();
+    }
+
+    private async Task OnPatientChanged()
+    {
+        ApplyFilters();
+    }
+}

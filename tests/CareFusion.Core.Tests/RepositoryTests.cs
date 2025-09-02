@@ -14,7 +14,7 @@ public class PatientRepositoryTests : IDisposable
     public PatientRepositoryTests()
     {
         var options = new DbContextOptionsBuilder<CareFusionDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .UseInMemoryDatabase(databaseName: $"TestDb_{Random.Shared.Next()}")
             .Options;
 
         _context = new CareFusionDbContext(options);
@@ -27,7 +27,6 @@ public class PatientRepositoryTests : IDisposable
         // Arrange
         var patient = new Patient
         {
-            Id = Guid.NewGuid(),
             FirstName = "John",
             LastName = "Doe",
             MRN = "TEST001",
@@ -53,7 +52,6 @@ public class PatientRepositoryTests : IDisposable
         // Arrange
         var patient = new Patient
         {
-            Id = Guid.NewGuid(),
             FirstName = "Jane",
             LastName = "Smith",
             MRN = "TEST002"
@@ -74,7 +72,7 @@ public class PatientRepositoryTests : IDisposable
     public async Task GetByIdAsync_WithInvalidId_ShouldReturnNull()
     {
         // Arrange
-        var invalidId = Guid.NewGuid();
+        var invalidId = 999;
 
         // Act
         var result = await _repository.GetByIdAsync(invalidId);
@@ -89,7 +87,6 @@ public class PatientRepositoryTests : IDisposable
         // Arrange
         var patient = new Patient
         {
-            Id = Guid.NewGuid(),
             FirstName = "Test",
             LastName = "Patient",
             MRN = "UNIQUE001"
@@ -120,9 +117,9 @@ public class PatientRepositoryTests : IDisposable
         // Arrange
         var patients = new[]
         {
-            new Patient { Id = Guid.NewGuid(), FirstName = "John", LastName = "Doe", MRN = "TEST001" },
-            new Patient { Id = Guid.NewGuid(), FirstName = "Jane", LastName = "Smith", MRN = "TEST002" },
-            new Patient { Id = Guid.NewGuid(), FirstName = "Bob", LastName = "Johnson", MRN = "TEST003" }
+            new Patient { FirstName = "John", LastName = "Doe", MRN = "TEST001" },
+            new Patient { FirstName = "Jane", LastName = "Smith", MRN = "TEST002" },
+            new Patient { FirstName = "Bob", LastName = "Johnson", MRN = "TEST003" }
         };
 
         _context.Patients.AddRange(patients);
@@ -144,7 +141,6 @@ public class PatientRepositoryTests : IDisposable
         // Arrange
         var patient = new Patient 
         { 
-            Id = Guid.NewGuid(), 
             FirstName = "Test", 
             LastName = "Patient", 
             MRN = "SEARCH001" 
@@ -167,9 +163,9 @@ public class PatientRepositoryTests : IDisposable
         // Arrange
         var patients = new[]
         {
-            new Patient { Id = Guid.NewGuid(), FirstName = "Patient", LastName = "One", MRN = "ALL001" },
-            new Patient { Id = Guid.NewGuid(), FirstName = "Patient", LastName = "Two", MRN = "ALL002" },
-            new Patient { Id = Guid.NewGuid(), FirstName = "Patient", LastName = "Three", MRN = "ALL003" }
+            new Patient { FirstName = "Patient", LastName = "One", MRN = "ALL001" },
+            new Patient { FirstName = "Patient", LastName = "Two", MRN = "ALL002" },
+            new Patient { FirstName = "Patient", LastName = "Three", MRN = "ALL003" }
         };
 
         _context.Patients.AddRange(patients);
@@ -188,7 +184,6 @@ public class PatientRepositoryTests : IDisposable
         // Arrange
         var patient = new Patient
         {
-            Id = Guid.NewGuid(),
             FirstName = "Original",
             LastName = "Name",
             MRN = "UPDATE001"
@@ -211,7 +206,6 @@ public class PatientRepositoryTests : IDisposable
         // Arrange
         var patient = new Patient
         {
-            Id = Guid.NewGuid(),
             FirstName = "Delete",
             LastName = "Me",
             MRN = "DELETE001"
@@ -222,9 +216,10 @@ public class PatientRepositoryTests : IDisposable
         // Act
         _repository.Remove(patient);
 
-        // Assert
+        // Assert - soft delete sets IsDeleted = true and marks as Modified
         var entry = _context.Entry(patient);
-        Assert.Equal(EntityState.Deleted, entry.State);
+        Assert.Equal(EntityState.Modified, entry.State);
+        Assert.True(patient.IsDeleted);
     }
 
     public void Dispose()
@@ -242,7 +237,7 @@ public class ExamRepositoryTests : IDisposable
     public ExamRepositoryTests()
     {
         var options = new DbContextOptionsBuilder<CareFusionDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .UseInMemoryDatabase(databaseName: $"ExamTestDb_{Random.Shared.Next()}")
             .Options;
 
         _context = new CareFusionDbContext(options);
@@ -251,7 +246,6 @@ public class ExamRepositoryTests : IDisposable
         // Create a test patient for exam relationships
         _testPatient = new Patient
         {
-            Id = Guid.NewGuid(),
             FirstName = "Test",
             LastName = "Patient",
             MRN = "EXAM_TEST_001"
@@ -266,7 +260,6 @@ public class ExamRepositoryTests : IDisposable
         // Arrange
         var exam = new Exam
         {
-            Id = Guid.NewGuid(),
             PatientId = _testPatient.Id,
             Modality = "CT",
             StudyType = "Chest CT",
@@ -292,7 +285,6 @@ public class ExamRepositoryTests : IDisposable
         // Arrange
         var exam = new Exam
         {
-            Id = Guid.NewGuid(),
             PatientId = _testPatient.Id,
             Modality = "MRI",
             StudyType = "Brain MRI",
@@ -317,9 +309,9 @@ public class ExamRepositoryTests : IDisposable
         // Arrange
         var exams = new[]
         {
-            new Exam { Id = Guid.NewGuid(), PatientId = _testPatient.Id, Modality = "CT", StudyType = "Chest CT", StudyDateUtc = DateTime.UtcNow.AddDays(-2) },
-            new Exam { Id = Guid.NewGuid(), PatientId = _testPatient.Id, Modality = "MRI", StudyType = "Brain MRI", StudyDateUtc = DateTime.UtcNow.AddDays(-1) },
-            new Exam { Id = Guid.NewGuid(), PatientId = Guid.NewGuid(), Modality = "X-Ray", StudyType = "Chest X-Ray", StudyDateUtc = DateTime.UtcNow } // Different patient
+            new Exam { PatientId = _testPatient.Id, Modality = "CT", StudyType = "Chest CT", StudyDateUtc = DateTime.UtcNow.AddDays(-2) },
+            new Exam { PatientId = _testPatient.Id, Modality = "MRI", StudyType = "Brain MRI", StudyDateUtc = DateTime.UtcNow.AddDays(-1) },
+            new Exam { PatientId = 999, Modality = "X-Ray", StudyType = "Chest X-Ray", StudyDateUtc = DateTime.UtcNow } // Different patient
         };
 
         _context.Exams.AddRange(exams);
@@ -343,7 +335,6 @@ public class ExamRepositoryTests : IDisposable
         // Arrange
         var exams = Enumerable.Range(1, 5).Select(i => new Exam
         {
-            Id = Guid.NewGuid(),
             PatientId = _testPatient.Id,
             Modality = "CT",
             StudyType = $"Study {i}",
@@ -368,7 +359,6 @@ public class ExamRepositoryTests : IDisposable
         // Arrange
         var exam = new Exam
         {
-            Id = Guid.NewGuid(),
             PatientId = _testPatient.Id,
             Modality = "X-Ray",
             StudyType = "Original Study",
@@ -393,7 +383,6 @@ public class ExamRepositoryTests : IDisposable
         // Arrange
         var exam = new Exam
         {
-            Id = Guid.NewGuid(),
             PatientId = _testPatient.Id,
             Modality = "Ultrasound",
             StudyType = "Delete Me",
@@ -406,9 +395,10 @@ public class ExamRepositoryTests : IDisposable
         // Act
         _repository.Remove(exam);
 
-        // Assert
+        // Assert - soft delete sets IsDeleted = true and marks as Modified
         var entry = _context.Entry(exam);
-        Assert.Equal(EntityState.Deleted, entry.State);
+        Assert.Equal(EntityState.Modified, entry.State);
+        Assert.True(exam.IsDeleted);
     }
 
     public void Dispose()

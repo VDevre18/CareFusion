@@ -1,0 +1,324 @@
+@page "/change-clinical-site"
+@attribute [Authorize]
+@using CareFusion.Model.Dtos
+@using CareFusion.Web.Services.Interfaces
+@inject IClinicSiteService ClinicSiteService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Change Clinical Site - CareFusion</PageTitle>
+
+<div class="change-site-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Change Clinical Site</h2>
+            <p class="text-muted">Select your current clinical site location</p>
+        </div>
+    </div>
+
+    <div class="current-site-section mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Current Site</h5>
+                <div class="current-site-info">
+                    <div class="site-name">@currentSite.Name</div>
+                    <div class="site-details text-muted">
+                        <div>@currentSite.Address</div>
+                        <div>@currentSite.Phone</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="available-sites-section">
+        <h5 class="mb-3">Available Sites</h5>
+        
+        <div class="search-section mb-4">
+            <input type="text" class="form-control search-input" placeholder="Search sites by name" @bind="searchTerm" @oninput="OnSearchTermChanged" />
+        </div>
+
+        <div class="sites-list">
+            @if (filteredSites.Any())
+            {
+                @foreach (var site in filteredSites)
+                {
+                    <div class="site-card @(site.Id == selectedSiteId ? "selected" : "")" @onclick="() => SelectSite(site.Id)">
+                        <div class="site-card-content">
+                            <div class="site-name">@site.Name</div>
+                            <div class="site-address">@site.Address</div>
+                            <div class="site-phone">@site.Phone</div>
+                        </div>
+                        <div class="site-card-action">
+                            @if (site.Id == selectedSiteId)
+                            {
+                                <i class="bi bi-check-circle-fill text-primary"></i>
+                            }
+                            else
+                            {
+                                <i class="bi bi-circle text-muted"></i>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="text-center text-muted py-5">
+                    No sites found matching your search
+                </div>
+            }
+        </div>
+
+        <div class="action-buttons mt-4">
+            <button type="button" class="btn btn-secondary me-2" @onclick="GoBack">
+                Cancel
+            </button>
+            <button type="button" class="btn btn-primary" @onclick="ChangeSite" disabled="@(selectedSiteId == 0 || selectedSiteId == currentSite.Id || isChanging)">
+                @if (isChanging)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                }
+                Change Site
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .change-site-container {
+        padding: 20px;
+        max-width: 800px;
+    }
+
+    .search-input {
+        max-width: 400px;
+        border-bottom: 2px solid #007bff;
+        border-radius: 0;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+        box-shadow: none;
+        padding-left: 0;
+    }
+
+    .search-input:focus {
+        border-bottom-color: #0056b3;
+        box-shadow: none;
+    }
+
+    .current-site-info .site-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8px;
+    }
+
+    .current-site-info .site-details {
+        font-size: 14px;
+        line-height: 1.4;
+    }
+
+    .site-card {
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        transition: all 0.2s ease;
+    }
+
+    .site-card:hover {
+        border-color: #007bff;
+        background-color: #f8f9fa;
+    }
+
+    .site-card.selected {
+        border-color: #007bff;
+        background-color: #e7f3ff;
+    }
+
+    .site-card-content {
+        flex-grow: 1;
+    }
+
+    .site-card .site-name {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 4px;
+    }
+
+    .site-card .site-address {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 2px;
+    }
+
+    .site-card .site-phone {
+        color: #888;
+        font-size: 14px;
+    }
+
+    .site-card-action {
+        font-size: 20px;
+    }
+
+    .action-buttons {
+        display: flex;
+        justify-content: end;
+    }
+</style>
+
+@code {
+    private List<ClinicSiteDto> availableSites = new();
+    private List<ClinicSiteDto> filteredSites = new();
+    private ClinicSiteDto currentSite = new();
+    private string searchTerm = "";
+    private int selectedSiteId = 0;
+    private bool isChanging = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSites();
+    }
+
+    private async Task LoadSites()
+    {
+        try
+        {
+            // Load available sites from service first
+            var result = await ClinicSiteService.SearchAsync("", 1, 100);
+            availableSites = result.Items.ToList();
+
+            // Load current site from local storage or default
+            var currentSiteName = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "currentClinicSite");
+            if (string.IsNullOrEmpty(currentSiteName))
+            {
+                currentSiteName = "Main Medical Center";
+            }
+
+            // Find the current site from available sites
+            currentSite = availableSites.FirstOrDefault(s => s.Name == currentSiteName);
+
+            // If no sites from service, use sample data including Main Medical Center
+            if (!availableSites.Any())
+            {
+                availableSites = new List<ClinicSiteDto>
+                {
+                    new() { Id = 1, Name = "Main Medical Center", Address = "123 Healthcare Blvd, Medical City, CA 90210", Phone = "(555) 123-4567", Code = "MAIN", IsActive = true },
+                    new() { Id = 2, Name = "Downtown Clinic", Address = "456 Central Ave, Metro City, CA 90211", Phone = "(555) 234-5678", Code = "DOWN", IsActive = true },
+                    new() { Id = 3, Name = "Kodiak Cres", Address = "789 Suburban Dr, Suburbs, CA 90212", Phone = "(555) 345-6789", Code = "SUB", IsActive = true },
+                    new() { Id = 4, Name = "North Campus", Address = "321 North St, Medical City, CA 90213", Phone = "(555) 456-7890", Code = "NORTH", IsActive = true },
+                    new() { Id = 5, Name = "Emergency Center", Address = "654 Emergency Blvd, Medical City, CA 90214", Phone = "(555) 567-8901", Code = "EMER", IsActive = true }
+                };
+                
+                // Find current site from sample data
+                currentSite = availableSites.FirstOrDefault(s => s.Name == currentSiteName);
+            }
+
+            // If still no current site found, default to first site
+            if (currentSite == null && availableSites.Any())
+            {
+                currentSite = availableSites.First();
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "currentClinicSite", currentSite.Name);
+            }
+
+            FilterSites();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading sites: {ex.Message}");
+            // Fallback to sample data
+            currentSite = new ClinicSiteDto
+            {
+                Id = 1,
+                Name = "Main Medical Center",
+                Address = "123 Healthcare Blvd, Medical City, CA 90210",
+                Phone = "(555) 123-4567"
+            };
+
+            availableSites = new List<ClinicSiteDto>
+            {
+                new() { Id = 1, Name = "Main Medical Center", Address = "123 Healthcare Blvd, Medical City, CA 90210", Phone = "(555) 123-4567", Code = "MAIN", IsActive = true },
+                new() { Id = 2, Name = "Downtown Clinic", Address = "456 Central Ave, Metro City, CA 90211", Phone = "(555) 234-5678", Code = "DOWN", IsActive = true }
+            };
+            FilterSites();
+        }
+    }
+
+    private void OnSearchTermChanged(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? "";
+        FilterSites();
+    }
+
+    private void FilterSites()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredSites = availableSites.ToList();
+        }
+        else
+        {
+            filteredSites = availableSites
+                .Where(s => s.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                           s.Address.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+        StateHasChanged();
+    }
+
+    private void SelectSite(int siteId)
+    {
+        selectedSiteId = siteId;
+        StateHasChanged();
+    }
+
+    private async Task ChangeSite()
+    {
+        if (selectedSiteId == 0 || selectedSiteId == currentSite.Id)
+            return;
+
+        try
+        {
+            isChanging = true;
+            StateHasChanged();
+
+            // Simulate API call
+            await Task.Delay(1000);
+
+            var selectedSite = availableSites.FirstOrDefault(s => s.Id == selectedSiteId);
+            if (selectedSite != null)
+            {
+                // Store the selected clinic site in localStorage
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "currentClinicSite", selectedSite.Name);
+                
+                // Update current site
+                currentSite = selectedSite;
+                
+                // Reset selection
+                selectedSiteId = 0;
+                
+                // Refresh the entire page to update the header
+                await JSRuntime.InvokeVoidAsync("location.reload");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error changing site: {ex.Message}");
+        }
+        finally
+        {
+            isChanging = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

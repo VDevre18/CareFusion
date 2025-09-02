@@ -1,0 +1,644 @@
+@page "/settings"
+@attribute [Authorize]
+
+<PageTitle>Settings - CareFusion</PageTitle>
+
+<div class="settings-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>System Settings</h2>
+            <p class="text-muted">Configure application preferences and export settings</p>
+        </div>
+        <div class="settings-status">
+            <span class="badge @(hasUnsavedChanges ? "bg-warning" : "bg-success")">
+                <i class="bi @(hasUnsavedChanges ? "bi-exclamation-triangle" : "bi-check-circle") me-1"></i>
+                @(hasUnsavedChanges ? "Unsaved Changes" : "All Saved")
+            </span>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- General Settings -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-gear me-2"></i>General Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Date Format</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-calendar"></i>
+                                    </span>
+                                    <select class="form-select" @bind="dateFormat" @bind:after="OnSettingChanged">
+                                        <option value="MM/dd/yyyy">MM/dd/yyyy (12/31/2024)</option>
+                                        <option value="dd/MM/yyyy">dd/MM/yyyy (31/12/2024)</option>
+                                        <option value="yyyy-MM-dd">yyyy-MM-dd (2024-12-31)</option>
+                                        <option value="MMM dd, yyyy">MMM dd, yyyy (Dec 31, 2024)</option>
+                                    </select>
+                                </div>
+                                <small class="text-muted">Preview: @DateTime.Now.ToString(dateFormat)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Time Format</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-clock"></i>
+                                    </span>
+                                    <select class="form-select" @bind="timeFormat" @bind:after="OnSettingChanged">
+                                        <option value="h:mm tt">12-hour (2:30 PM)</option>
+                                        <option value="HH:mm">24-hour (14:30)</option>
+                                    </select>
+                                </div>
+                                <small class="text-muted">Preview: @DateTime.Now.ToString(timeFormat)</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Theme</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-palette"></i>
+                                    </span>
+                                    <select class="form-select" @bind="theme" @bind:after="OnSettingChanged">
+                                        <option value="light">Light Theme</option>
+                                        <option value="dark">Dark Theme</option>
+                                        <option value="auto">Auto (System)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Language</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-translate"></i>
+                                    </span>
+                                    <select class="form-select" @bind="language" @bind:after="OnSettingChanged">
+                                        <option value="en">English</option>
+                                        <option value="es">Español</option>
+                                        <option value="fr">Français</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="toggle-settings">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <div class="setting-title">Data Synchronization</div>
+                                <div class="setting-description">Automatically sync data across devices</div>
+                            </div>
+                            <div class="setting-toggle">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" @bind="isSyncEnabled" @bind:after="OnSettingChanged" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <div class="setting-title">Email Notifications</div>
+                                <div class="setting-description">Receive email alerts for important events</div>
+                            </div>
+                            <div class="setting-toggle">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" @bind="emailNotifications" @bind:after="OnSettingChanged" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <div class="setting-title">Auto-Save</div>
+                                <div class="setting-description">Automatically save changes every 5 minutes</div>
+                            </div>
+                            <div class="setting-toggle">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" @bind="autoSave" @bind:after="OnSettingChanged" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auto Export Settings -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-upload me-2"></i>Auto Export Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Network Drive</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-hdd-network"></i>
+                                    </span>
+                                    <select class="form-select" @bind="selectedDrive" @bind:after="OnSettingChanged">
+                                        <option value="">Select Network Drive</option>
+                                        @foreach (var drive in availableDrives)
+                                        {
+                                            <option value="@drive.Path">@drive.Name (@drive.Path)</option>
+                                        }
+                                    </select>
+                                </div>
+                                @if (string.IsNullOrEmpty(selectedDrive))
+                                {
+                                    <small class="text-muted">No network drives available. Contact IT to map drives.</small>
+                                }
+                                else
+                                {
+                                    <small class="text-muted">Selected: @selectedDrive</small>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-secondary" @onclick="RefreshDrives" disabled="@isRefreshing">
+                                    @if (isRefreshing)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-arrow-clockwise me-1"></i>
+                                    }
+                                    Refresh
+                                </button>
+                                <button class="btn btn-outline-primary" @onclick="ValidateDrive" disabled="@(string.IsNullOrEmpty(selectedDrive) || isValidating)">
+                                    @if (isValidating)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check-circle me-1"></i>
+                                    }
+                                    Test
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (driveValidationResult != null)
+                    {
+                        <div class="alert @(driveValidationResult.IsValid ? "alert-success" : "alert-danger") mb-3">
+                            <i class="bi @(driveValidationResult.IsValid ? "bi-check-circle" : "bi-x-circle") me-1"></i>
+                            @driveValidationResult.Message
+                        </div>
+                    }
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Export Format</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-file-earmark"></i>
+                                    </span>
+                                    <select class="form-select" @bind="exportFormat" @bind:after="OnSettingChanged">
+                                        <option value="DICOM">DICOM (.dcm)</option>
+                                        <option value="JPEG">JPEG (.jpg)</option>
+                                        <option value="PNG">PNG (.png)</option>
+                                        <option value="PDF">PDF (.pdf)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Export Schedule</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-clock"></i>
+                                    </span>
+                                    <select class="form-select" @bind="exportSchedule" @bind:after="OnSettingChanged">
+                                        <option value="immediate">Immediate</option>
+                                        <option value="daily">Daily at 2 AM</option>
+                                        <option value="weekly">Weekly (Sunday 2 AM)</option>
+                                        <option value="monthly">Monthly (1st at 2 AM)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <div class="setting-title">Auto Export Status</div>
+                            <div class="setting-description">
+                                @if (CanEnableAutoExport())
+                                {
+                                    <span class="text-success">Ready to enable auto export</span>
+                                }
+                                else
+                                {
+                                    <span class="text-warning">Configure and validate network drive first</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="setting-toggle">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" @bind="isAutoExportEnabled" @bind:after="OnSettingChanged" disabled="@(!CanEnableAutoExport())" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Summary Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle me-2"></i>Settings Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="summary-item">
+                        <strong>Date Format:</strong>
+                        <span>@dateFormat</span>
+                    </div>
+                    <div class="summary-item">
+                        <strong>Sync Status:</strong>
+                        <span class="badge @(isSyncEnabled ? "bg-success" : "bg-secondary")">
+                            @(isSyncEnabled ? "Enabled" : "Disabled")
+                        </span>
+                    </div>
+                    <div class="summary-item">
+                        <strong>Auto Export:</strong>
+                        <span class="badge @(isAutoExportEnabled ? "bg-success" : "bg-secondary")">
+                            @(isAutoExportEnabled ? "Active" : "Inactive")
+                        </span>
+                    </div>
+                    <div class="summary-item">
+                        <strong>Export Format:</strong>
+                        <span>@exportFormat</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-shield-check me-2"></i>Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" @onclick="SaveSettings" disabled="@(!hasUnsavedChanges || isSaving)">
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            }
+                            <i class="bi bi-check-circle me-1"></i>Save All Settings
+                        </button>
+                        <button class="btn btn-outline-secondary" @onclick="ResetSettings" disabled="@(!hasUnsavedChanges)">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Reset Changes
+                        </button>
+                        <button class="btn btn-outline-warning">
+                            <i class="bi bi-download me-1"></i>Export Settings
+                        </button>
+                        <button class="btn btn-outline-info">
+                            <i class="bi bi-upload me-1"></i>Import Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .settings-container {
+        padding: 20px;
+        max-width: 1200px;
+    }
+
+    .form-group .input-group-text {
+        background-color: #f8f9fa;
+        border-right: none;
+        color: #6c757d;
+    }
+
+    .form-group .form-control,
+    .form-group .form-select {
+        border-left: none;
+    }
+
+    .form-group .form-control:focus,
+    .form-group .form-select:focus {
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        border-color: #80bdff;
+    }
+
+    .setting-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        background-color: #fafafa;
+    }
+
+    .setting-info {
+        flex-grow: 1;
+    }
+
+    .setting-title {
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 4px;
+    }
+
+    .setting-description {
+        font-size: 14px;
+        color: #666;
+    }
+
+    .setting-toggle {
+        margin-left: 16px;
+    }
+
+    .form-check-input:checked {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #f0f0f0;
+        align-items: center;
+    }
+
+    .summary-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .settings-status .badge {
+        font-size: 14px;
+        padding: 8px 12px;
+    }
+
+    .toggle-settings {
+        margin-top: 20px;
+    }
+
+    .alert {
+        border-radius: 6px;
+    }
+
+    .btn-sm {
+        font-size: 14px;
+    }
+
+    .d-grid.gap-2 > .btn {
+        margin-bottom: 8px;
+    }
+</style>
+
+@code {
+    private string dateFormat = "MM/dd/yyyy";
+    private string timeFormat = "h:mm tt";
+    private string theme = "light";
+    private string language = "en";
+    private bool isSyncEnabled = true;
+    private bool emailNotifications = true;
+    private bool autoSave = true;
+    
+    private string selectedDrive = "";
+    private string exportFormat = "DICOM";
+    private string exportSchedule = "immediate";
+    private bool isAutoExportEnabled = false;
+
+    private bool hasUnsavedChanges = false;
+    private bool isSaving = false;
+    private bool isRefreshing = false;
+    private bool isValidating = false;
+
+    private List<NetworkDrive> availableDrives = new();
+    private ValidationResult? driveValidationResult;
+
+    // Store original values to track changes
+    private string originalDateFormat = "MM/dd/yyyy";
+    private string originalTimeFormat = "h:mm tt";
+    private string originalTheme = "light";
+    private string originalLanguage = "en";
+    private bool originalSyncEnabled = true;
+    private bool originalEmailNotifications = true;
+    private bool originalAutoSave = true;
+    private string originalSelectedDrive = "";
+    private string originalExportFormat = "DICOM";
+    private string originalExportSchedule = "immediate";
+    private bool originalAutoExportEnabled = false;
+
+    protected override void OnInitialized()
+    {
+        LoadAvailableDrives();
+        SaveOriginalValues();
+    }
+
+    private void LoadAvailableDrives()
+    {
+        // In real implementation, load from system
+        availableDrives = new List<NetworkDrive>
+        {
+            new() { Name = "Medical Archive", Path = "\\\\medserver01\\archive" },
+            new() { Name = "Backup Storage", Path = "\\\\backupserver\\carefusion" },
+            new() { Name = "Research Drive", Path = "\\\\research\\images" }
+        };
+    }
+
+    private void SaveOriginalValues()
+    {
+        originalDateFormat = dateFormat;
+        originalTimeFormat = timeFormat;
+        originalTheme = theme;
+        originalLanguage = language;
+        originalSyncEnabled = isSyncEnabled;
+        originalEmailNotifications = emailNotifications;
+        originalAutoSave = autoSave;
+        originalSelectedDrive = selectedDrive;
+        originalExportFormat = exportFormat;
+        originalExportSchedule = exportSchedule;
+        originalAutoExportEnabled = isAutoExportEnabled;
+    }
+
+    private void OnSettingChanged()
+    {
+        CheckForChanges();
+        StateHasChanged();
+    }
+
+    private void CheckForChanges()
+    {
+        hasUnsavedChanges = 
+            dateFormat != originalDateFormat ||
+            timeFormat != originalTimeFormat ||
+            theme != originalTheme ||
+            language != originalLanguage ||
+            isSyncEnabled != originalSyncEnabled ||
+            emailNotifications != originalEmailNotifications ||
+            autoSave != originalAutoSave ||
+            selectedDrive != originalSelectedDrive ||
+            exportFormat != originalExportFormat ||
+            exportSchedule != originalExportSchedule ||
+            isAutoExportEnabled != originalAutoExportEnabled;
+    }
+
+    private async Task RefreshDrives()
+    {
+        isRefreshing = true;
+        StateHasChanged();
+
+        try
+        {
+            await Task.Delay(1500); // Simulate network call
+            LoadAvailableDrives();
+            Console.WriteLine("Network drives refreshed");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error refreshing drives: {ex.Message}");
+        }
+        finally
+        {
+            isRefreshing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ValidateDrive()
+    {
+        if (string.IsNullOrEmpty(selectedDrive))
+            return;
+
+        isValidating = true;
+        driveValidationResult = null;
+        StateHasChanged();
+
+        try
+        {
+            await Task.Delay(2000); // Simulate validation
+            
+            // Simulate validation result
+            var isValid = !selectedDrive.Contains("research"); // Research drive fails for demo
+            driveValidationResult = new ValidationResult
+            {
+                IsValid = isValid,
+                Message = isValid 
+                    ? "Drive connection successful. Ready for auto export."
+                    : "Unable to connect to drive. Please check network connectivity."
+            };
+        }
+        catch (Exception ex)
+        {
+            driveValidationResult = new ValidationResult
+            {
+                IsValid = false,
+                Message = $"Validation error: {ex.Message}"
+            };
+        }
+        finally
+        {
+            isValidating = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool CanEnableAutoExport()
+    {
+        return !string.IsNullOrEmpty(selectedDrive) && 
+               driveValidationResult?.IsValid == true;
+    }
+
+    private async Task SaveSettings()
+    {
+        if (!hasUnsavedChanges)
+            return;
+
+        isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            await Task.Delay(2000); // Simulate API call
+            
+            // In real implementation, save to API/database
+            SaveOriginalValues();
+            hasUnsavedChanges = false;
+            
+            Console.WriteLine("Settings saved successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving settings: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetSettings()
+    {
+        dateFormat = originalDateFormat;
+        timeFormat = originalTimeFormat;
+        theme = originalTheme;
+        language = originalLanguage;
+        isSyncEnabled = originalSyncEnabled;
+        emailNotifications = originalEmailNotifications;
+        autoSave = originalAutoSave;
+        selectedDrive = originalSelectedDrive;
+        exportFormat = originalExportFormat;
+        exportSchedule = originalExportSchedule;
+        isAutoExportEnabled = originalAutoExportEnabled;
+        
+        hasUnsavedChanges = false;
+        driveValidationResult = null;
+        StateHasChanged();
+    }
+
+    private class NetworkDrive
+    {
+        public string Name { get; set; } = "";
+        public string Path { get; set; } = "";
+    }
+
+    private class ValidationResult
+    {
+        public bool IsValid { get; set; }
+        public string Message { get; set; } = "";
+    }
+}

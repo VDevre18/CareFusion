@@ -35,7 +35,7 @@ public class AuthControllerTests
         var loginRequest = new LoginRequest("admin@carefusion.com", "admin123");
         var expectedUser = new UserDto
         {
-            Id = Guid.NewGuid(),
+            Id = 1,
             Username = "admin@carefusion.com",
             Email = "admin@carefusion.com",
             IsActive = true
@@ -171,7 +171,7 @@ public class AuthControllerTests
         var loginRequest = new LoginRequest("test@carefusion.com", "testpass123");
         var expectedResponse = ApiResponse<UserDto>.Ok(new UserDto 
         { 
-            Id = Guid.NewGuid(), 
+            Id = 2, 
             Username = "test@carefusion.com", 
             Email = "test@carefusion.com",
             IsActive = true
@@ -201,7 +201,7 @@ public class AuthControllerTests
         var loginRequest = new LoginRequest(username, password);
         var expectedResponse = ApiResponse<UserDto>.Ok(new UserDto 
         { 
-            Id = Guid.NewGuid(), 
+            Id = 3, 
             Username = username, 
             Email = username,
             IsActive = true

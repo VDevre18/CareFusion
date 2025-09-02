@@ -1,0 +1,97 @@
+@page "/favorite-folder"
+@attribute [Authorize]
+@inject NavigationManager Navigation
+
+<PageTitle>Favorite Folder - CareFusion</PageTitle>
+
+<div class="page-container">
+    <div class="page-header">
+        <div class="page-title">
+            <h1>
+                <i class="bi bi-heart"></i>
+                Favorite Folder
+            </h1>
+            <p class="page-subtitle">Your saved favorite images and content</p>
+        </div>
+    </div>
+
+    <div class="favorites-content">
+        <div class="favorites-grid">
+            @if (!favorites.Any())
+            {
+                <div class="empty-state">
+                    <i class="bi bi-heart" style="font-size: 64px; color: #6c757d; margin-bottom: 16px;"></i>
+                    <h3>No Favorites Yet</h3>
+                    <p>Images and content you mark as favorite will appear here.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var favorite in favorites)
+                {
+                    <div class="favorite-card">
+                        <div class="favorite-image">
+                            <img src="@favorite.ImageUrl" alt="@favorite.Title" />
+                        </div>
+                        <div class="favorite-details">
+                            <h4>@favorite.Title</h4>
+                            <p>@favorite.Description</p>
+                            <small class="text-muted">Added: @favorite.DateAdded.ToString("MMM dd, yyyy")</small>
+                        </div>
+                        <div class="favorite-actions">
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewFavorite(favorite.Id)">
+                                <i class="bi bi-eye"></i>
+                                View
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveFavorite(favorite.Id)">
+                                <i class="bi bi-heart-fill"></i>
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<FavoriteItem> favorites = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load favorites - this would typically come from a service
+        await LoadFavorites();
+    }
+
+    private async Task LoadFavorites()
+    {
+        // Placeholder for loading favorites from database/service
+        // For now, create empty list to show empty state
+        await Task.Delay(100);
+        favorites = new List<FavoriteItem>();
+    }
+
+    private void ViewFavorite(int favoriteId)
+    {
+        // Navigate to detailed view of the favorite
+        Console.WriteLine($"Viewing favorite: {favoriteId}");
+    }
+
+    private async Task RemoveFavorite(int favoriteId)
+    {
+        // Remove favorite from list
+        favorites = favorites.Where(f => f.Id != favoriteId).ToList();
+        Console.WriteLine($"Removed favorite: {favoriteId}");
+        StateHasChanged();
+    }
+
+    public class FavoriteItem
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string ImageUrl { get; set; } = string.Empty;
+        public DateTime DateAdded { get; set; }
+    }
+}

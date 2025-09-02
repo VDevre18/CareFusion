@@ -13,7 +13,8 @@ public class ExamConfiguration : IEntityTypeConfiguration<Exam>
         b.HasKey(x => x.Id);
 
         b.Property(x => x.RowVersion)
-            .IsRowVersion();
+            .IsRowVersion()
+            .ValueGeneratedOnAddOrUpdate();
 
         b.Property(x => x.Modality).IsRequired().HasMaxLength(100);
         b.Property(x => x.StudyType).IsRequired().HasMaxLength(100);

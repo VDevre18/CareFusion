@@ -18,5 +18,5 @@
 
 @code {
     [Parameter] public IEnumerable<ExamDto> Items { get; set; } = Array.Empty<ExamDto>();
-    [Parameter] public Action<Guid>? OnView { get; set; }
+    [Parameter] public Action<int>? OnView { get; set; }
 }

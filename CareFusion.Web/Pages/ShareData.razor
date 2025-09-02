@@ -1,0 +1,328 @@
+@page "/share-data"
+@attribute [Authorize]
+
+<PageTitle>Share Data - CareFusion</PageTitle>
+
+<div class="share-data-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Share Data Link</h2>
+            <p class="text-muted">Manage data sharing with external users and organizations</p>
+        </div>
+        <div class="action-buttons">
+            <button class="btn btn-outline-primary me-2">
+                <i class="bi bi-eye"></i> See Data Shared
+            </button>
+            <button class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Create Share Link
+            </button>
+        </div>
+    </div>
+
+    <div class="filters-section mb-4">
+        <div class="row">
+            <div class="col-md-6">
+                <input type="text" class="form-control search-input" placeholder="Search by username or organization" @bind="searchTerm" @oninput="OnSearchTermChanged" />
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" @bind="selectedTimeFilter" @bind:after="FilterShares">
+                    <option value="all">All Time</option>
+                    <option value="recent">Recent (30 days)</option>
+                    <option value="older">Older (>30 days)</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" @bind="selectedStatusFilter" @bind:after="FilterShares">
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="expired">Expired</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    @if (filteredShares.Any())
+    {
+        <div class="results-summary mb-3">
+            <span class="text-muted">Showing @filteredShares.Count of @sharedUsers.Count data shares</span>
+        </div>
+
+        <div class="shares-list">
+            <div class="row fw-bold border-bottom pb-2 mb-3">
+                <div class="col-3">Username</div>
+                <div class="col-3">Organization</div>
+                <div class="col-2">Shared Since</div>
+                <div class="col-2">Status</div>
+                <div class="col-2">Actions</div>
+            </div>
+
+            @foreach (var share in filteredShares)
+            {
+                <div class="row align-items-center py-3 border-bottom share-row">
+                    <div class="col-3">
+                        <div class="share-info">
+                            <div class="username">@share.Username</div>
+                            <small class="text-muted">
+                                <i class="bi bi-envelope me-1"></i>@(share.Email ?? "No email")
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <span class="organization">@share.Organization</span>
+                    </div>
+                    <div class="col-2">
+                        <div class="share-date">
+                            <div>@share.SinceDate.ToString("MM/dd/yyyy")</div>
+                            <small class="text-muted">@share.SinceDate.ToString("h:mm tt")</small>
+                        </div>
+                    </div>
+                    <div class="col-2">
+                        <span class="badge @(share.IsActive ? "bg-success" : "bg-secondary")">
+                            @(share.IsActive ? "Active" : "Expired")
+                        </span>
+                    </div>
+                    <div class="col-2">
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-outline-primary btn-sm" @onclick="() => ViewShareDetails(share.Username)" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-warning btn-sm" @onclick="() => ExtendShare(share.Username)" title="Extend Access">
+                                <i class="bi bi-clock"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteShare(share.Username)" title="Revoke Access">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="pagination-section mt-4 d-flex justify-content-between align-items-center">
+            <div class="bulk-actions">
+                <button class="btn btn-outline-danger me-2" disabled="@(!selectedShares.Any())">
+                    <i class="bi bi-x-circle"></i> Revoke Selected (@selectedShares.Count)
+                </button>
+                <button class="btn btn-outline-warning" disabled="@(!selectedShares.Any())">
+                    <i class="bi bi-clock"></i> Extend Selected (@selectedShares.Count)
+                </button>
+            </div>
+            <div class="pagination-info">
+                <span class="text-muted">Page 1 of 1</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-share display-4"></i>
+            <h4 class="mt-3">No Data Shares Found</h4>
+            <p>@(string.IsNullOrWhiteSpace(searchTerm) ? "No data has been shared yet." : "No data shares match your search criteria.")</p>
+            <button class="btn btn-primary mt-3">
+                <i class="bi bi-plus-circle"></i> Create Your First Share Link
+            </button>
+        </div>
+    }
+</div>
+
+<style>
+    .share-data-container {
+        padding: 20px;
+    }
+
+    .search-input {
+        border-bottom: 2px solid #007bff;
+        border-radius: 0;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+        box-shadow: none;
+        padding-left: 0;
+    }
+
+    .search-input:focus {
+        border-bottom-color: #0056b3;
+        box-shadow: none;
+    }
+
+    .share-row {
+        transition: background-color 0.2s ease;
+    }
+
+    .share-row:hover {
+        background-color: #f8f9fa;
+    }
+
+    .username {
+        font-weight: 500;
+        color: #333;
+    }
+
+    .organization {
+        font-weight: 500;
+        color: #666;
+    }
+
+    .share-date {
+        font-size: 14px;
+    }
+
+    .btn-sm {
+        font-size: 12px;
+        padding: 6px 8px;
+    }
+
+    .border-bottom {
+        border-bottom: 1px solid #dee2e6 !important;
+    }
+
+    .results-summary {
+        font-size: 14px;
+        padding: 10px 0;
+    }
+
+    .bulk-actions {
+        display: flex;
+        align-items: center;
+    }
+
+    .pagination-info {
+        font-size: 14px;
+    }
+
+    .filters-section .form-select,
+    .filters-section .form-control {
+        border-radius: 6px;
+    }
+
+    .action-buttons {
+        display: flex;
+        align-items: center;
+    }
+
+    .badge {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+</style>
+
+@code {
+    private string searchTerm = "";
+    private string selectedTimeFilter = "all";
+    private string selectedStatusFilter = "all";
+    private List<int> selectedShares = new();
+    private List<SharedUser> sharedUsers = new()
+    {
+        new SharedUser 
+        { 
+            Username = "admin", 
+            Organization = "cellviewdev", 
+            Since = "2025-07-16 2:03 PM",
+            Email = "admin@cellviewdev.com",
+            SinceDate = DateTime.Parse("2025-07-16 2:03 PM"),
+            IsActive = true
+        },
+        new SharedUser 
+        { 
+            Username = "dr.smith", 
+            Organization = "Medical Partners", 
+            Since = "2025-08-15 10:30 AM",
+            Email = "smith@medicalpartners.com",
+            SinceDate = DateTime.Parse("2025-08-15 10:30 AM"),
+            IsActive = true
+        },
+        new SharedUser 
+        { 
+            Username = "nurse.jane", 
+            Organization = "Healthcare Solutions", 
+            Since = "2025-06-20 4:15 PM",
+            Email = "jane@healthcare.com",
+            SinceDate = DateTime.Parse("2025-06-20 4:15 PM"),
+            IsActive = false
+        }
+    };
+
+    private List<SharedUser> filteredShares = new();
+
+    protected override void OnInitialized()
+    {
+        FilterShares();
+    }
+
+    private void OnSearchTermChanged(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? "";
+        FilterShares();
+    }
+
+    private void FilterShares()
+    {
+        var filtered = sharedUsers.AsQueryable();
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filtered = filtered.Where(s => 
+                s.Username.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                s.Organization.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                (s.Email ?? "").Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Apply time filter
+        if (selectedTimeFilter != "all")
+        {
+            var thirtyDaysAgo = DateTime.Now.AddDays(-30);
+            switch (selectedTimeFilter)
+            {
+                case "recent":
+                    filtered = filtered.Where(s => s.SinceDate >= thirtyDaysAgo);
+                    break;
+                case "older":
+                    filtered = filtered.Where(s => s.SinceDate < thirtyDaysAgo);
+                    break;
+            }
+        }
+
+        // Apply status filter
+        if (selectedStatusFilter != "all")
+        {
+            var isActive = selectedStatusFilter == "active";
+            filtered = filtered.Where(s => s.IsActive == isActive);
+        }
+
+        filteredShares = filtered.ToList();
+        StateHasChanged();
+    }
+
+    private void DeleteShare(string username)
+    {
+        var user = sharedUsers.FirstOrDefault(u => u.Username == username);
+        if (user != null) 
+        {
+            sharedUsers.Remove(user);
+            FilterShares();
+        }
+    }
+
+    private void ViewShareDetails(string username)
+    {
+        // In real implementation, navigate to share details page
+        Console.WriteLine($"View details for share: {username}");
+    }
+
+    private void ExtendShare(string username)
+    {
+        // In real implementation, show extend access dialog
+        Console.WriteLine($"Extend access for share: {username}");
+    }
+
+    private class SharedUser
+    {
+        public string Username { get; set; } = "";
+        public string Organization { get; set; } = "";
+        public string Since { get; set; } = "";
+        public string? Email { get; set; }
+        public DateTime SinceDate { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+}
